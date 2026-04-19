@@ -1,0 +1,46 @@
+.vscode
+
+# 前端构建产物和依赖
+vue-frontend/dist/
+vue-frontend/node_modules/
+
+# 后端可执行文件和模型
+djandjango-backend/dual-shield.exe
+django-backend/models/
+
+# 数据库文件
+django-backend/data/
+
+# Python缓存
+django-backend/**/__pycache__/
+
+# 环境文件和日志
+.env
+*.log
+
+# IDE和编辑器文件
+.idea/
+*.swp
+*.swo
+*~
+
+# OS生成的文件
+.DS_Store
+Thumbs.db
+venv
+api_server.py
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+
+# 依赖目录
+node_modules/
+venv/
+.venv/

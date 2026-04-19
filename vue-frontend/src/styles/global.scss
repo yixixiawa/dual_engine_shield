@@ -1,0 +1,107 @@
+@use './variables.scss' as *;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: $gradient-bg;
+  background-attachment: fixed;
+  background-size: 400% 400%;
+  animation: gradientShift 20s ease infinite;
+  color: #1e293b;
+  min-height: 100vh;
+}
+
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+// 自定义滚动条
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  
+  &:hover {
+    background: rgba(0, 0, 0, 0.3);
+  }
+}
+
+// 动画类
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+// 玻璃效果类
+.glass {
+  @include glass;
+}
+
+.glass-dark {
+  @include glass-dark;
+}
+
+// 渐变文字
+.gradient-text {
+  background: $gradient-primary;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+// 悬停提升效果
+.hover-lift {
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
+  }
+}
+
+// 进度条
+.progress-bar {
+  background: $gradient-primary;
+  transition: width 0.5s ease;
+}
+
+// 漏洞卡片
+.vuln-card {
+  border-left: 3px solid transparent;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateX(5px);
+    background: rgba(139, 92, 246, 0.03);
+  }
+  
+  &.critical { 
+    border-left-color: #dc2626; 
+    background: rgba(254, 226, 226, 0.5); 
+  }
+  &.high { 
+    border-left-color: #ef4444; 
+    background: rgba(254, 242, 242, 0.5); 
+  }
+  &.medium { 
+    border-left-color: #f59e0b; 
+    background: rgba(255, 251, 235, 0.5); 
+  }
+  &.low { 
+    border-left-color: #3b82f6; 
+    background: rgba(239, 246, 255, 0.5); 
+  }
+}
