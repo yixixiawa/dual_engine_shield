@@ -299,6 +299,8 @@ const generateReport = () => {
 </script>
 
 <style lang="scss" scoped>
+@use '@/styles/variables.scss' as *;
+
 .combined-detection {
     max-width: 1024px;
     margin: 0 auto;
@@ -308,10 +310,30 @@ const generateReport = () => {
         justify-content: space-between;
         align-items: center;
         margin-bottom: 1.5rem;
+        transition: all 0.2s ease;
 
         .status-tag {
             padding: 0.5rem 1rem;
             border-radius: 9999px;
+            transition: all 0.2s ease;
+
+            &:hover {
+                transform: scale(1.05);
+                box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+            }
+        }
+
+        :deep(.el-button) {
+            transition: all 0.2s ease;
+
+            &:hover:not(:disabled) {
+                transform: translateY(-2px);
+                filter: brightness(1.05);
+            }
+
+            &:active:not(:disabled) {
+                transform: translateY(0);
+            }
         }
     }
 
@@ -321,11 +343,23 @@ const generateReport = () => {
         margin-bottom: 1.5rem;
         background: rgba(255, 255, 255, 0.6);
         backdrop-filter: blur(16px);
+        transition: all 0.2s ease;
+        border: 1px solid rgba(79, 70, 229, 0.2);
+
+        &:hover {
+            box-shadow: 0 12px 24px -8px rgba(79, 70, 229, 0.15);
+            border-color: rgba(79, 70, 229, 0.3);
+        }
 
         .card-title {
             font-size: 1.5rem;
             font-weight: 700;
             margin-bottom: 0.5rem;
+            transition: all 0.2s ease;
+
+            &:hover {
+                color: $primary;
+            }
         }
 
         .card-desc {
@@ -336,14 +370,44 @@ const generateReport = () => {
         .input-area {
             display: flex;
             gap: 1rem;
+            transition: all 0.2s ease;
 
             .el-input {
                 flex: 1;
+                transition: all 0.2s ease;
+
+                :deep(.el-input__wrapper) {
+                    transition: all 0.2s ease;
+
+                    &:hover,
+                    &:focus-within {
+                        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1),
+                                    0 0 12px rgba(79, 70, 229, 0.2);
+                    }
+                }
+            }
+
+            :deep(.el-button) {
+                transition: all 0.2s ease;
+
+                &:hover:not(:disabled) {
+                    transform: translateY(-2px);
+                    filter: brightness(1.05);
+                }
+
+                &:active:not(:disabled) {
+                    transform: translateY(0);
+                }
             }
         }
 
         .card-header {
             font-weight: 600;
+            transition: all 0.2s ease;
+
+            &:hover {
+                color: $primary;
+            }
         }
     }
 
@@ -352,6 +416,14 @@ const generateReport = () => {
             display: flex;
             gap: 1rem;
             margin-bottom: 1.5rem;
+            padding: 12px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+
+            &:hover {
+                background: rgba(79, 70, 229, 0.05);
+                transform: translateX(4px);
+            }
 
             &:last-child {
                 margin-bottom: 0;
@@ -367,6 +439,7 @@ const generateReport = () => {
                 font-size: 0.875rem;
                 font-weight: 600;
                 flex-shrink: 0;
+                transition: all 0.2s ease;
 
                 &.pending {
                     background: #f3f4f6;
@@ -377,11 +450,14 @@ const generateReport = () => {
                     background: #3b82f6;
                     color: white;
                     animation: spin 1s linear infinite;
+                    box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
                 }
 
                 &.completed {
                     background: #10b981;
                     color: white;
+                    transform: scale(1.05);
+                    box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
                 }
 
                 .step-number {
@@ -392,10 +468,12 @@ const generateReport = () => {
 
             .step-content {
                 flex: 1;
+                transition: all 0.2s ease;
 
                 .step-title {
                     font-weight: 500;
                     margin-bottom: 0.25rem;
+                    transition: all 0.2s ease;
                 }
 
                 .step-status {
@@ -418,16 +496,26 @@ const generateReport = () => {
             padding: 1rem;
             background: rgba(0, 0, 0, 0.02);
             border-radius: 0.75rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+
+            &:hover {
+                background: rgba(79, 70, 229, 0.05);
+                transform: translateY(-4px);
+                box-shadow: 0 8px 16px rgba(79, 70, 229, 0.1);
+            }
 
             .summary-label {
                 font-size: 0.875rem;
                 color: #6b7280;
                 margin-bottom: 0.5rem;
+                transition: all 0.2s ease;
             }
 
             .summary-value {
                 font-size: 2rem;
                 font-weight: 700;
+                transition: all 0.2s ease;
 
                 &.text-danger {
                     color: #ef4444;
@@ -446,11 +534,14 @@ const generateReport = () => {
                 font-size: 0.75rem;
                 color: #9ca3af;
                 margin-top: 0.25rem;
+                transition: all 0.2s ease;
             }
         }
     }
 
     .crawl-info {
+        animation: slideInDown 0.3s ease-out;
+
         .info-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -458,23 +549,37 @@ const generateReport = () => {
 
             .info-item {
                 text-align: center;
+                padding: 12px;
+                background: rgba(79, 70, 229, 0.02);
+                border-radius: 8px;
+                transition: all 0.2s ease;
+
+                &:hover {
+                    background: rgba(79, 70, 229, 0.05);
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
+                }
 
                 .info-label {
                     font-size: 0.75rem;
                     color: #6b7280;
                     display: block;
                     margin-bottom: 0.25rem;
+                    transition: all 0.2s ease;
                 }
 
                 .info-value {
                     font-size: 1.25rem;
                     font-weight: 600;
+                    transition: all 0.2s ease;
                 }
             }
         }
     }
 
     .vuln-details {
+        animation: slideInDown 0.3s ease-out;
+
         .detail-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -482,17 +587,29 @@ const generateReport = () => {
 
             .detail-item {
                 text-align: center;
+                padding: 12px;
+                background: rgba(79, 70, 229, 0.02);
+                border-radius: 8px;
+                transition: all 0.2s ease;
+
+                &:hover {
+                    background: rgba(79, 70, 229, 0.05);
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
+                }
 
                 .detail-label {
                     font-size: 0.75rem;
                     color: #6b7280;
                     display: block;
                     margin-bottom: 0.25rem;
+                    transition: all 0.2s ease;
                 }
 
                 .detail-value {
                     font-size: 1rem;
                     font-weight: 600;
+                    transition: all 0.2s ease;
 
                     &.text-danger {
                         color: #ef4444;
@@ -510,20 +627,37 @@ const generateReport = () => {
         margin-top: 1.5rem;
         padding: 1rem;
         border-radius: 0.75rem;
+        transition: all 0.2s ease;
+        animation: slideInUp 0.3s ease-out;
 
         &.risk-safe {
             background: rgba(16, 185, 129, 0.1);
             border: 1px solid #10b981;
+
+            &:hover {
+                box-shadow: 0 8px 16px rgba(16, 185, 129, 0.2);
+                transform: translateY(-2px);
+            }
         }
 
         &.risk-medium {
             background: rgba(245, 158, 11, 0.1);
             border: 1px solid #f59e0b;
+
+            &:hover {
+                box-shadow: 0 8px 16px rgba(245, 158, 11, 0.2);
+                transform: translateY(-2px);
+            }
         }
 
         &.risk-critical {
             background: rgba(239, 68, 68, 0.1);
             border: 1px solid #ef4444;
+
+            &:hover {
+                box-shadow: 0 8px 16px rgba(239, 68, 68, 0.2);
+                transform: translateY(-2px);
+            }
         }
 
         .assessment-header {
@@ -531,24 +665,58 @@ const generateReport = () => {
             justify-content: space-between;
             align-items: center;
             margin-bottom: 0.5rem;
+            transition: all 0.2s ease;
 
             .assessment-label {
                 font-weight: 600;
+                transition: all 0.2s ease;
             }
 
             .assessment-badge {
                 font-size: 0.875rem;
                 font-weight: 600;
+                transition: all 0.2s ease;
             }
         }
 
         .assessment-desc {
             font-size: 0.875rem;
             margin: 0;
+            transition: all 0.2s ease;
         }
     }
 }
 
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
 @keyframes spin {
     from {
         transform: rotate(0deg);

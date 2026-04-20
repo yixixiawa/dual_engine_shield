@@ -51,8 +51,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h } from 'vue'
-import { useRoute, useRouter, RouteRecordRaw } from 'vue-router'
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useTasksStore } from '@/stores/tasks'
 import { Monitor, Warning, Lock, Document } from '@element-plus/icons-vue'
 

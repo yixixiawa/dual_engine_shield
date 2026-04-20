@@ -1,13 +1,24 @@
 import earthFlyLine from "earth-flyline";
-import geojson from "@/assets/world.json";
-import type EarthModel from "@/api/modules/Earth_model";
+import geojson from "@/assets/world.json" with { type: "json" };
+
+interface ChartStyle {
+  earthColor: { value: string };
+  areaColor: { value: string };
+  lineColor: { value: string };
+}
 
 export const useEarthModel = () => {
   let chart: any = null;
+  
+  const chartstyle: ChartStyle = {
+    earthColor: { value: '#2C5F8D' },
+    areaColor: { value: '#6E98BA' },
+    lineColor: { value: '#FF6B6B' }
+  };
 
   const initChart = (containerId: string) => {
     // 注册地图
-    earthFlyLine.registerMap("world", geojson);
+    earthFlyLine.registerMap("world", geojson as any);
 
     // 获取dom节点作为容器
     const dom = document.getElementById(containerId) as HTMLElement;

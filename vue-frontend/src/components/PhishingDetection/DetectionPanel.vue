@@ -76,10 +76,19 @@ const emit = defineEmits<{
 </script>
 
 <style lang="scss" scoped>
+@use '@/styles/variables.scss' as *;
+
 .detection-panel {
     margin-bottom: 1.5rem;
     background: rgba(255, 255, 255, 0.6);
     backdrop-filter: blur(16px);
+    transition: all 0.2s ease;
+    border: 1px solid rgba(79, 70, 229, 0.2);
+
+    &:hover {
+        box-shadow: 0 12px 24px -8px rgba(79, 70, 229, 0.15);
+        border-color: rgba(79, 70, 229, 0.3);
+    }
 
     .detection-header {
         display: flex;
@@ -95,12 +104,18 @@ const emit = defineEmits<{
             gap: 0.5rem;
             font-size: 1.25rem;
             font-weight: 600;
+            transition: all 0.2s ease;
+
+            &:hover {
+                color: $primary;
+            }
         }
 
         .threshold-control {
             display: flex;
             align-items: center;
             gap: 0.75rem;
+            transition: all 0.2s ease;
 
             .label,
             .strict,
@@ -121,6 +136,15 @@ const emit = defineEmits<{
 
             .threshold-slider {
                 width: 160px;
+                transition: all 0.2s ease;
+
+                :deep(.el-slider__bar) {
+                    transition: all 0.2s ease;
+                }
+
+                :deep(.el-slider__button-wrapper) {
+                    transition: all 0.2s ease;
+                }
             }
         }
     }
@@ -130,6 +154,29 @@ const emit = defineEmits<{
 
         :deep(.el-input-group__append) {
             padding: 0;
+
+            button {
+                transition: all 0.2s ease;
+
+                &:hover:not(:disabled) {
+                    transform: translateY(-2px);
+                    filter: brightness(1.05);
+                }
+
+                &:active:not(:disabled) {
+                    transform: translateY(0);
+                }
+            }
+        }
+
+        :deep(.el-input__wrapper) {
+            transition: all 0.2s ease;
+
+            &:hover,
+            &:focus-within {
+                box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1),
+                            0 0 12px rgba(79, 70, 229, 0.2);
+            }
         }
     }
 
@@ -142,6 +189,20 @@ const emit = defineEmits<{
         .label {
             font-size: 0.75rem;
             color: #6b7280;
+        }
+
+        :deep(.el-button) {
+            transition: all 0.2s ease;
+
+            &:hover {
+                transform: translateY(-2px);
+                filter: brightness(1.05);
+                box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.15);
+            }
+
+            &:active {
+                transform: translateY(0);
+            }
         }
     }
 }

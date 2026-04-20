@@ -32,6 +32,6 @@ export interface HealthResponse {
 
 export const healthAPI = {
     getHealth() {
-        return apiCall<HealthResponse>('/api/health', 'GET')
+        return apiCall<HealthResponse>('/health', 'GET')
     }
 }

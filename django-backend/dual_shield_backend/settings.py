@@ -209,10 +209,12 @@ DETECTION_CONFIG = {
 PHISHING_DETECTION = {
     'mode': os.getenv('PHISHING_MODE', 'ensemble'),  # ensemble, original, chiphish
     'threshold': float(os.getenv('PHISHING_THRESHOLD', '0.5')),
-    'ensemble_strategy': os.getenv('PHISHING_ENSEMBLE_STRATEGY', 'weighted'),
+    'ensemble_strategy': os.getenv('PHISHING_ENSEMBLE_STRATEGY', 'weighted'),  # weighted, mean, max, min
     'w_original': float(os.getenv('PHISHING_W_ORIGINAL', '0.7')),
     'w_chiphish': float(os.getenv('PHISHING_W_CHIPHISH', '0.3')),
     'max_length': int(os.getenv('PHISHING_MAX_LENGTH', '512')),
+    'edu_gentle': os.getenv('PHISHING_EDU_GENTLE', 'true').lower() in ('1', 'true', 'yes'),
+    'allowlist_path': os.getenv('PHISHING_ALLOWLIST_PATH', None),  # 白名单文件路径
 }
 
 # ======================== 任务队列配置 (可选) ========================

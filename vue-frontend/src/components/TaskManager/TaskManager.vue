@@ -187,6 +187,8 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
+@use '@/styles/variables.scss' as *;
+
 .task-manager {
     max-width: 1400px;
     margin: 0 auto;
@@ -197,12 +199,27 @@ onMounted(() => {
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 1rem;
     margin-bottom: 1.5rem;
+
+    :deep(.stat-card) {
+        transition: all 0.2s ease;
+
+        &:hover {
+            transform: translateY(-4px);
+        }
+    }
 }
 
 .filter-card {
     margin-bottom: 1.5rem;
     background: rgba(255, 255, 255, 0.6);
     backdrop-filter: blur(16px);
+    transition: all 0.2s ease;
+    border: 1px solid rgba(79, 70, 229, 0.2);
+
+    &:hover {
+        box-shadow: 0 12px 24px -8px rgba(79, 70, 229, 0.15);
+        border-color: rgba(79, 70, 229, 0.3);
+    }
 
     .filters {
         display: flex;
@@ -214,10 +231,37 @@ onMounted(() => {
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            transition: all 0.2s ease;
 
             .filter-label {
                 font-size: 0.875rem;
                 color: #6b7280;
+            }
+
+            :deep(.el-select) {
+                transition: all 0.2s ease;
+
+                .el-input__wrapper {
+                    transition: all 0.2s ease;
+
+                    &:hover,
+                    &:focus-within {
+                        box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+                    }
+                }
+            }
+        }
+
+        :deep(.el-button) {
+            transition: all 0.2s ease;
+
+            &:hover:not(:disabled) {
+                transform: translateY(-2px);
+                filter: brightness(1.05);
+            }
+
+            &:active:not(:disabled) {
+                transform: translateY(0);
             }
         }
     }
@@ -226,12 +270,24 @@ onMounted(() => {
 .task-list-card {
     background: rgba(255, 255, 255, 0.6);
     backdrop-filter: blur(16px);
+    transition: all 0.2s ease;
+    border: 1px solid rgba(79, 70, 229, 0.2);
+
+    &:hover {
+        box-shadow: 0 12px 24px -8px rgba(79, 70, 229, 0.15);
+        border-color: rgba(79, 70, 229, 0.3);
+    }
 
     .card-header {
         display: flex;
         align-items: center;
         gap: 0.5rem;
         font-weight: 500;
+        transition: all 0.2s ease;
+
+        &:hover {
+            color: $primary;
+        }
     }
 
     :deep(.el-table) {
@@ -239,6 +295,24 @@ onMounted(() => {
 
         th {
             background: rgba(0, 0, 0, 0.02);
+            transition: all 0.2s ease;
+        }
+
+        tbody tr {
+            transition: all 0.2s ease;
+
+            &:hover {
+                background-color: rgba(79, 70, 229, 0.05) !important;
+                transform: translateY(-1px);
+            }
+        }
+
+        .el-button {
+            transition: all 0.2s ease;
+
+            &:hover {
+                transform: translateY(-2px);
+            }
         }
 
         .mono {
@@ -253,5 +327,6 @@ onMounted(() => {
 
 .empty-state {
     padding: 2rem;
+    animation: fadeIn 0.3s ease-out;
 }
 </style>

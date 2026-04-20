@@ -1,7 +1,7 @@
 import { createAlova } from "alova"
 import GlobalFetch from "alova/fetch"
 
-export const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000/api"
+export const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080/api"
 export const DEFAULT_TIMEOUT = 300000
 
 const alovaInstance = createAlova({

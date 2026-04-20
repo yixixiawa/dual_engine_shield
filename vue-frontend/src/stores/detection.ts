@@ -31,9 +31,16 @@ export const useDetectionStore = defineStore('detection', () => {
             currentResult.value = result
 
             // 添加到历史
+            let score: number = 0
+            if ('final_score' in result) {
+                score = Number(result.final_score) || 0
+            } else if ('risk_score' in result) {
+                score = Number(result.risk_score) || 0
+            }
+            
             history.value.unshift({
                 url,
-                score: result.final_score || result.risk_score,
+                score,
                 timestamp: new Date(),
                 result
             })
@@ -81,13 +88,13 @@ export const useDetectionStore = defineStore('detection', () => {
     }
 
     // URL漏洞检测
-    const detectUrlVulnerability = async (url: string, detectTypes?: string[], maxCodeLength?: number, cweIds?: string[]) => {
+    const detectUrlVulnerability = async (url: string, _detectTypes?: string[], _maxCodeLength?: number, cweIds?: string[]) => {
         isLoading.value = true
         try {
             // 将 cweIds 转换为数字数组
             const numericCweIds = cweIds ? cweIds.map(id => parseInt(id)) : []
             const result = await vulnerabilityAPI.detectUrl(url, undefined, numericCweIds)
-            currentResult.value = result
+            currentResult.value = result as any
             return result
         } catch (error: any) {
             ElMessage.error(error.message || 'URL检测失败')

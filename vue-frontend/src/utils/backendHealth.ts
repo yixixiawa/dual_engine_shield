@@ -6,11 +6,15 @@ import { API_BASE } from '../api/client'
  */
 export const checkBackendHealth = async (): Promise<boolean> => {
   try {
-    const response = await fetch(`${API_BASE}/api/health`, {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 3000)
+    
+    const response = await fetch(`${API_BASE}/health`, {
       method: 'GET',
-      timeout: 3000,
+      signal: controller.signal,
       credentials: 'include'
     })
+    clearTimeout(timeoutId)
     return response.ok
   } catch (error) {
     console.error('后端服务器检测失败:', error)
@@ -53,5 +57,4 @@ export const monitorBackendStatus = async (onStatusChange?: (isOnline: boolean, 
   if (onStatusChange) {
     onStatusChange(status.isOnline, status.message)
   }
-  return status
 }

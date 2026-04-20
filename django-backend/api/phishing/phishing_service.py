@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 钓鱼检测 - 服务层
-为 API 和其他调用者提供统一的分析接口
+为 API 和其他调用者提供统一的分析接口，支持双模型、白名单、Token 归因等功能
 """
 import time
 import logging
@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 
 from .phishing_detector import PhishingDetector
+from .attribution import build_explanation
 
 logger = logging.getLogger(__name__)
 
@@ -28,19 +29,36 @@ class PhishingAnalysisService:
     def __init__(
         self,
         models_root: Optional[Path] = None,
+        mode: str = "ensemble",
         phish_threshold: float = 0.5,
+        allowlist_path: Optional[Path] = None,
+        edu_gentle: bool = True,
+        ensemble_strategy: str = "weighted",
+        w_original: float = 0.7,
+        w_chiphish: float = 0.3,
     ):
         """
         初始化服务
 
         Args:
             models_root: 模型根目录
+            mode: 检测模式 (original/chiphish/ensemble)
             phish_threshold: 钓鱼阈值
+            allowlist_path: 白名单文件路径
+            edu_gentle: 是否对教育/政府机构采用宽松阈值
+            ensemble_strategy: 融合策略 (weighted/mean/max/min)
+            w_original: 原始模型权重
+            w_chiphish: ChiPhish 模型权重
         """
         self.detector = PhishingDetector(
             models_root=models_root,
-            mode="original",
+            mode=mode,
             phish_threshold=phish_threshold,
+            allowlist_path=allowlist_path,
+            edu_gentle=edu_gentle,
+            ensemble_strategy=ensemble_strategy,
+            w_original=w_original,
+            w_chiphish=w_chiphish,
         )
 
     def analyze(
@@ -48,6 +66,8 @@ class PhishingAnalysisService:
         url: str,
         html_content: Optional[str] = None,
         html_file: Optional[str] = None,
+        explain: bool = False,
+        explain_top_k: int = 20,
     ) -> Dict[str, Any]:
         """
         执行钓鱼检测分析
@@ -56,6 +76,8 @@ class PhishingAnalysisService:
             url: 要检测的 URL
             html_content: HTML 内容（可选）
             html_file: 本地 HTML 文件路径（可选）
+            explain: 是否返回 Token 级归因解释
+            explain_top_k: 返回的 Top-K token 数量
 
         Returns:
             分析结果字典
@@ -86,6 +108,7 @@ class PhishingAnalysisService:
                     "latency_ms": round((time.perf_counter() - t0) * 1000, 2),
                     "error": f"Failed to read HTML file: {str(e)}",
                     "is_phishing": None,
+                    "explanation": None,
                 }
         else:
             # 自动从 URL 获取 HTML 内容
@@ -106,6 +129,7 @@ class PhishingAnalysisService:
                 html_to_use = ""
 
         # 执行预测
+        model_text = self.detector.compose_model_text(url, html_to_use)
         prediction = self.detector.predict(url, html_to_use)
 
         latency_ms = round((time.perf_counter() - t0) * 1000, 2)
@@ -119,16 +143,32 @@ class PhishingAnalysisService:
             "is_phishing": prediction.get("is_phishing"),
             "score": prediction.get("score"),
             "threshold": prediction.get("threshold"),
+            "scores_per_model": prediction.get("scores_per_model", {}),
+            "strategy_used": prediction.get("strategy_used"),
+            "allowlist_domain": prediction.get("allowlist_domain"),
+            "policy_note": prediction.get("policy_note"),
             "content_stats": {
                 "html_char_len": len(html_to_use),
-                "model_input_char_len": len(
-                    self.detector.compose_model_text(url, html_to_use)
-                ),
+                "model_input_char_len": len(model_text),
                 "html_snippet_max": self.detector.HTML_SNIPPET_MAX,
                 "tokenizer_max_length": self.detector.max_length,
             },
             "error": prediction.get("error"),
+            "explanation": None,
         }
+
+        # Token 级归因解释（可选）
+        if explain and not prediction.get("error"):
+            try:
+                result["explanation"] = build_explanation(
+                    self.detector, model_text, top_k=explain_top_k
+                )
+            except Exception as e:
+                logger.warning(f"Token 归因失败: {str(e)}")
+                result["explanation"] = {
+                    "kind": "TokenAttributionBundle",
+                    "error": str(e),
+                }
 
         # 安全处理 score 值（可能为 None）
         score_str = f"{result['score']:.4f}" if result['score'] is not None else "N/A"
@@ -136,6 +176,7 @@ class PhishingAnalysisService:
             f"分析完成 - URL: {url}, "
             f"是钓鱼: {result['is_phishing']}, "
             f"分数: {score_str}, "
+            f"策略: {prediction.get('strategy_used')}, "
             f"耗时: {latency_ms}ms"
         )
 

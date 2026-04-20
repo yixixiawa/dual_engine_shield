@@ -1,4 +1,4 @@
-import { apiCall } from "./modules/ipinfo";
+import { apiCall } from "./client"
 
 export interface IPGeoInfo {
     ip: string;

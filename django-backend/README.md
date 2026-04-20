@@ -2,6 +2,27 @@
 
 这是一个 Django 框架实现的 Dual Shield 后端，提供 REST API 接口用于钓鱼检测和代码漏洞检测。
 
+---
+
+## 🚀 快速开始
+
+### 第一次运行
+
+```bash
+# 1. 安装依赖
+pip install -r requirements.txt
+
+# 2. 迁移数据库
+python manage.py migrate
+
+# 3. 启动服务
+python main.py 8080
+```
+
+服务启动后，访问 `http://localhost:8080/api/health/` 检查健康状态。
+
+---
+
 ## 项目结构
 
 ```
@@ -56,25 +77,40 @@ pip install -r requirements.txt
 python manage.py migrate
 ```
 
-### 4. 运行开发服务器
+### 3. 启动服务器 ⭐ 推荐
+
+**方式一：使用 main.py（推荐）**
+
+```bash
+# 默认启动在 localhost:8000
+python main.py
+
+# 指定端口启动
+python main.py 8080
+
+# 指定主机和端口启动
+python main.py 0.0.0.0 8080
+```
+
+**方式二：使用 Django 命令**
 
 ```bash
 python manage.py runserver 0.0.0.0:8080
 ```
 
-或使用启动脚本：
+**方式三：使用启动脚本**
 
-**Windows:**
+Windows:
 ```bash
 .\run.bat
 ```
 
-**Linux/macOS:**
+Linux/macOS:
 ```bash
 ./run.sh
 ```
 
-服务器将在 `http://localhost:8080` 启动。
+服务器启动后访问 `http://localhost:8000` 或指定的 IP:端口。
 
 ### 自动创建的数据库
 
