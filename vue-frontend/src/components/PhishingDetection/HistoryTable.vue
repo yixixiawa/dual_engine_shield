@@ -23,9 +23,9 @@
                 </template>
             </el-table-column>
 
-            <el-table-column prop="model" label="检测模型" width="100">
+            <el-table-column prop="model" label="检测模型" width="140">
                 <template #default="{ row }">
-                    <el-tag size="small">{{ row.model?.toUpperCase() || 'SVM' }}</el-tag>
+                    <el-tag size="small" :type="getModelType(row.model)">{{ getModelName(row.model) }}</el-tag>
                 </template>
             </el-table-column>
 
@@ -82,6 +82,14 @@ const getScoreClass = (score: number) => {
     if (score >= 0.8) return 'text-danger'
     if (score >= 0.5) return 'text-warning'
     return 'text-success'
+}
+
+const getModelName = (_model: string) => {
+    return 'GTE'
+}
+
+const getModelType = (_model: string) => {
+    return 'primary'
 }
 
 const getResultType = (score: number) => {

@@ -40,13 +40,7 @@ const detectionStore = useDetectionStore()
 const whitelistStore = useWhitelistStore()
 
 const currentModelName = computed(() => {
-    const names: Record<string, string> = {
-        svm: 'SVM 传统模型',
-        gte: 'GTE 深度学习',
-        ngram: 'N-gram 神经网络',
-        deep: '深度综合检测'
-    }
-    return names[detectionStore.currentModel] || 'SVM'
+    return 'GTE 深度语义检测'
 })
 
 const toggleWhitelistPanel = () => {

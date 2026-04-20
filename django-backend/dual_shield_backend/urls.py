@@ -20,6 +20,10 @@ router.register(r'vulnerabilities', views.VulnerabilityDetectionViewSet, basenam
 router.register(r'tasks', views.DirectoryScanTaskViewSet, basename='tasks')
 router.register(r'config', views.SystemConfigViewSet, basename='config')
 
+# 地理位置钓鱼追踪路由
+router.register(r'geo-phishing/locations', views.GeoPhishingLocationViewSet, basename='geo-phishing-locations')
+router.register(r'geo-phishing/statistics', views.GeoPhishingStatisticsViewSet, basename='geo-phishing-statistics')
+
 urlpatterns = [
     # 主 API 路由
     path('api/', include(router.urls)),
@@ -46,6 +50,12 @@ urlpatterns = [
     path('api/ipinfo/save/', ipinfo_views.IPInfoSaveView.as_view(), name='ipinfo-save'),
     path('api/ipinfo/batch-save/', ipinfo_views.BatchIPInfoSaveView.as_view(), name='ipinfo-batch-save'),
     path('api/ipinfo/all/', ipinfo_views.AllIPInfoView.as_view(), name='ipinfo-all'),
+    
+    # 域名查询 API（域名转 IP + 地理信息）
+    path('api/ipinfo/domain/', ipinfo_views.DomainQueryView.as_view(), name='domain-query'),
+    
+    # 地理位置钓鱼追踪 API
+    path('api/geo-phishing/sync/', views.GeoLocationSyncView.as_view(), name='geo-sync'),
 
     # 任务管理 API
     path('api/tasks/<str:task_id>/', views.TaskDetailView.as_view(), name='task-detail'),

@@ -53,8 +53,9 @@ TREE_SITTER_LANGUAGES: Dict[str, str] = {
 # ==================== 模型相关常量 ====================
 
 # VR 模型路径（4-bit量化版本）
-# 使用相对路径，相对于FISIH目录
-VULNLMMR_MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..', 'VR', 'models', 'VR')
+# 使用相对路径，从 api/coding_detect/config.py 到 django-backend/models/VR
+# ../../ 表示回到 django-backend 目录
+VULNLMMR_MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'models', 'VR')
 
 # 模型类型标识
 MODEL_TYPE = "qwen"

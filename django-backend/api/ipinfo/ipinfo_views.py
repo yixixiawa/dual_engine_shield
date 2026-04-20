@@ -21,6 +21,7 @@ from .ipinfo_serializers import (
     APIKeyStatsSerializer,
     QueryStatsSerializer
 )
+from .domain_resolver import get_resolver
 
 logger = logging.getLogger(__name__)
 db = IPInfoDatabase()
@@ -467,4 +468,218 @@ class AllIPInfoView(APIView):
             return Response({
                 'status': 'error',
                 'message': f'获取失败: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ======================== 域名查询视图 ========================
+
+class DomainQueryView(APIView):
+    """
+    域名查询视图 - 将域名转换为 IP，然后查询地理信息
+    
+    支持：
+    1. 域名 -> IP 解析
+    2. IP -> 地理信息查询
+    3. 返回完整的物理位置信息
+    """
+    
+    @extend_schema(
+        summary="查询域名对应的 IP 地理信息",
+        description="将域名转换为 IP 地址，然后查询该 IP 的地理信息、ISP 等详细信息",
+        request={'type': 'object', 'properties': {
+            'domain': {'type': 'string', 'description': '域名或 URL'},
+            'use_cache': {'type': 'boolean', 'description': '是否使用缓存', 'default': True},
+            'resolve_all': {'type': 'boolean', 'description': '是否解析所有 IP', 'default': False},
+        }},
+        responses={200: {'type': 'object'}},
+        tags=["域名查询"]
+    )
+    def post(self, request):
+        """POST 查询域名的地理信息"""
+        domain_or_url = request.data.get('domain')
+        use_cache = request.data.get('use_cache', True)
+        resolve_all = request.data.get('resolve_all', False)
+        
+        if not domain_or_url:
+            return Response({
+                'status': 'error',
+                'message': '缺少 domain 参数'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            resolver = get_resolver()
+            
+            logger.info(f"🔍 开始解析域名: {domain_or_url}")
+            
+            # 第一步：域名转 IP
+            if resolve_all:
+                # 获取所有 IP
+                ip_list = resolver.get_all_ips_for_domain(domain_or_url)
+                if not ip_list:
+                    return Response({
+                        'status': 'error',
+                        'message': f'无法解析域名: {domain_or_url}'
+                    }, status=status.HTTP_404_NOT_FOUND)
+            else:
+                # 获取第一个 IP
+                ip_address = resolver.resolve_domain(domain_or_url)
+                if not ip_address:
+                    return Response({
+                        'status': 'error',
+                        'message': f'无法解析域名: {domain_or_url}'
+                    }, status=status.HTTP_404_NOT_FOUND)
+                ip_list = [ip_address]
+            
+            logger.info(f"✅ 域名解析成功: {domain_or_url} -> {ip_list}")
+            
+            # 第二步：查询每个 IP 的地理信息
+            results = []
+            for ip_address in ip_list:
+                try:
+                    # 先查缓存
+                    if use_cache:
+                        cached_info = db.get_ip_info(ip_address)
+                        if cached_info:
+                            results.append({
+                                'ip': ip_address,
+                                'source': 'cache',
+                                'data': cached_info
+                            })
+                            continue
+                    
+                    # 调用 IPinfo API
+                    ip_data, error = db.query_ipinfo_api(ip_address)
+                    if ip_data:
+                        results.append({
+                            'ip': ip_address,
+                            'source': 'api',
+                            'data': ip_data
+                        })
+                    else:
+                        results.append({
+                            'ip': ip_address,
+                            'status': 'failed',
+                            'error': error or '无法获取 IP 信息'
+                        })
+                except Exception as e:
+                    logger.error(f"查询 IP {ip_address} 失败: {e}")
+                    results.append({
+                        'ip': ip_address,
+                        'status': 'failed',
+                        'error': str(e)
+                    })
+            
+            return Response({
+                'status': 'success',
+                'domain': domain_or_url,
+                'ips': ip_list,
+                'total_ips': len(ip_list),
+                'results': results
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"域名查询失败: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': f'查询失败: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @extend_schema(
+        summary="查询域名信息 (GET)",
+        description="通过 URL 参数查询域名的地理信息",
+        parameters=[
+            OpenApiParameter('domain', OpenApiTypes.STR, OpenApiParameter.QUERY, 
+                           description='域名或 URL'),
+            OpenApiParameter('use_cache', OpenApiTypes.BOOL, OpenApiParameter.QUERY, 
+                           description='是否使用缓存', default=True),
+            OpenApiParameter('resolve_all', OpenApiTypes.BOOL, OpenApiParameter.QUERY, 
+                           description='是否解析所有 IP', default=False),
+        ],
+        responses={200: {'type': 'object'}},
+        tags=["域名查询"]
+    )
+    def get(self, request):
+        """GET 查询域名信息"""
+        domain_or_url = request.query_params.get('domain')
+        use_cache = request.query_params.get('use_cache', 'true').lower() == 'true'
+        resolve_all = request.query_params.get('resolve_all', 'false').lower() == 'true'
+        
+        if not domain_or_url:
+            return Response({
+                'status': 'error',
+                'message': '缺少 domain 参数'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            resolver = get_resolver()
+            
+            logger.info(f"🔍 开始解析域名: {domain_or_url}")
+            
+            # 第一步：域名转 IP
+            if resolve_all:
+                ip_list = resolver.get_all_ips_for_domain(domain_or_url)
+                if not ip_list:
+                    return Response({
+                        'status': 'error',
+                        'message': f'无法解析域名: {domain_or_url}'
+                    }, status=status.HTTP_404_NOT_FOUND)
+            else:
+                ip_address = resolver.resolve_domain(domain_or_url)
+                if not ip_address:
+                    return Response({
+                        'status': 'error',
+                        'message': f'无法解析域名: {domain_or_url}'
+                    }, status=status.HTTP_404_NOT_FOUND)
+                ip_list = [ip_address]
+            
+            logger.info(f"✅ 域名解析成功: {domain_or_url} -> {ip_list}")
+            
+            # 第二步：查询每个 IP 的地理信息
+            results = []
+            for ip_address in ip_list:
+                try:
+                    if use_cache:
+                        cached_info = db.get_ip_info(ip_address)
+                        if cached_info:
+                            results.append({
+                                'ip': ip_address,
+                                'source': 'cache',
+                                'data': cached_info
+                            })
+                            continue
+                    
+                    ip_data, error = db.query_ipinfo_api(ip_address)
+                    if ip_data:
+                        results.append({
+                            'ip': ip_address,
+                            'source': 'api',
+                            'data': ip_data
+                        })
+                    else:
+                        results.append({
+                            'ip': ip_address,
+                            'status': 'failed',
+                            'error': error or '无法获取 IP 信息'
+                        })
+                except Exception as e:
+                    logger.error(f"查询 IP {ip_address} 失败: {e}")
+                    results.append({
+                        'ip': ip_address,
+                        'status': 'failed',
+                        'error': str(e)
+                    })
+            
+            return Response({
+                'status': 'success',
+                'domain': domain_or_url,
+                'ips': ip_list,
+                'total_ips': len(ip_list),
+                'results': results
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"域名查询失败: {str(e)}")
+            return Response({
+                'status': 'error',
+                'message': f'查询失败: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -214,3 +214,219 @@ class SystemConfig(models.Model):
     
     def __str__(self):
         return f"{self.get_entry_type_display()}: {self.value}"
+
+
+# ======================== 地理位置钓鱼追踪模型 ========================
+
+class GeoPhishingLocation(models.Model):
+    """地理位置钓鱼追踪模型
+    
+    用于存储分析过的物理地址、IP和域名，以便前端 globestream 可视化
+    并高亮钓鱼地址，观察这些地址存在的问题。
+    """
+    
+    THREAT_LEVELS = [
+        ('safe', '安全'),
+        ('suspicious', '可疑'),
+        ('phishing', '钓鱼'),
+        ('malware', '恶意软件'),
+        ('unknown', '未知'),
+    ]
+    
+    SOURCE_TYPES = [
+        ('url_analysis', 'URL分析'),
+        ('domain_query', '域名查询'),
+        ('ip_query', 'IP查询'),
+        ('batch_import', '批量导入'),
+        ('detection_log', '检测日志'),
+    ]
+    
+    # 基础地理信息
+    ip_address = models.GenericIPAddressField(help_text="IP 地址")
+    domain = models.CharField(max_length=255, null=True, blank=True, help_text="域名")
+    url = models.URLField(max_length=2048, null=True, blank=True, help_text="URL")
+    
+    # 物理位置信息
+    country = models.CharField(max_length=100, help_text="国家")
+    region = models.CharField(max_length=100, null=True, blank=True, help_text="地区/省份")
+    city = models.CharField(max_length=100, null=True, blank=True, help_text="城市")
+    latitude = models.FloatField(help_text="纬度")
+    longitude = models.FloatField(help_text="经度")
+    location_name = models.CharField(max_length=255, null=True, blank=True, help_text="位置名称")
+    postal_code = models.CharField(max_length=20, null=True, blank=True, help_text="邮编")
+    timezone = models.CharField(max_length=100, null=True, blank=True, help_text="时区")
+    
+    # ISP 信息
+    org = models.CharField(max_length=255, null=True, blank=True, help_text="组织/ISP")
+    asn = models.CharField(max_length=50, null=True, blank=True, help_text="AS号")
+    
+    # 威胁信息
+    threat_level = models.CharField(
+        max_length=20, 
+        choices=THREAT_LEVELS, 
+        default='unknown',
+        help_text="威胁等级"
+    )
+    is_phishing = models.BooleanField(default=False, help_text="是否为钓鱼地址")
+    threat_reason = models.TextField(null=True, blank=True, help_text="威胁原因")
+    
+    # 来源信息
+    source_type = models.CharField(
+        max_length=20, 
+        choices=SOURCE_TYPES, 
+        default='detection_log',
+        help_text="数据来源类型"
+    )
+    source_id = models.CharField(max_length=255, null=True, blank=True, help_text="来源记录ID")
+    phishing_detection = models.ForeignKey(
+        PhishingDetection, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='geo_locations',
+        help_text="关联的钓鱼检测"
+    )
+    
+    # 分析数据
+    detection_count = models.IntegerField(default=1, help_text="检测次数")
+    confidence = models.FloatField(default=0.0, help_text="置信度 (0-1)")
+    risk_score = models.FloatField(default=0.0, help_text="风险评分 (0-100)")
+    
+    # 原始数据
+    raw_data = models.JSONField(null=True, blank=True, help_text="原始 IPinfo 数据")
+    metadata = models.JSONField(default=dict, help_text="额外的元数据")
+    
+    # 时间戳
+    first_seen = models.DateTimeField(auto_now_add=True, help_text="首次发现时间")
+    last_seen = models.DateTimeField(auto_now=True, help_text="最后更新时间")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # 索引优化
+    class Meta:
+        verbose_name = '地理位置钓鱼追踪'
+        verbose_name_plural = '地理位置钓鱼追踪'
+        ordering = ['-last_seen']
+        indexes = [
+            models.Index(fields=['ip_address']),
+            models.Index(fields=['domain']),
+            models.Index(fields=['threat_level']),
+            models.Index(fields=['is_phishing']),
+            models.Index(fields=['country', 'city']),
+            models.Index(fields=['-last_seen']),
+            models.Index(fields=['ip_address', 'is_phishing']),
+        ]
+        unique_together = [('ip_address', 'domain', 'url')]
+    
+    def __str__(self):
+        location = f"{self.city}, {self.country}" if self.city else self.country
+        return f"[{self.threat_level.upper()}] {self.ip_address} - {self.domain or 'N/A'} ({location})"
+    
+    def update_risk_score(self):
+        """更新风险评分"""
+        score = 0.0
+        
+        # 基础威胁等级评分
+        threat_scores = {
+            'safe': 10,
+            'suspicious': 50,
+            'phishing': 85,
+            'malware': 95,
+            'unknown': 30,
+        }
+        score = threat_scores.get(self.threat_level, 0)
+        
+        # 根据检测次数增加评分
+        if self.detection_count > 5:
+            score += 10
+        if self.detection_count > 10:
+            score += 10
+        
+        # 根据置信度调整
+        score *= self.confidence
+        
+        # 限制在 0-100 之间
+        self.risk_score = min(max(score, 0), 100)
+    
+    @classmethod
+    def get_phishing_locations(cls, limit=None):
+        """获取所有钓鱼地址"""
+        qs = cls.objects.filter(is_phishing=True).order_by('-risk_score')
+        if limit:
+            return qs[:limit]
+        return qs
+    
+    @classmethod
+    def get_locations_by_country(cls, country):
+        """按国家获取地址"""
+        return cls.objects.filter(country=country).order_by('-risk_score')
+    
+    @classmethod
+    def get_hot_spots(cls, limit=10):
+        """获取热点地址（风险最高的地址）"""
+        return cls.objects.order_by('-risk_score')[:limit]
+
+
+class GeoPhishingStatistics(models.Model):
+    """地理位置钓鱼统计模型
+    
+    用于存储按地区的钓鱼统计信息，加快前端查询速度
+    """
+    
+    country = models.CharField(max_length=100, unique=True, help_text="国家")
+    city = models.CharField(max_length=100, null=True, blank=True, help_text="城市")
+    
+    # 统计数据
+    total_locations = models.IntegerField(default=0, help_text="总位置数")
+    phishing_count = models.IntegerField(default=0, help_text="钓鱼地址数")
+    malware_count = models.IntegerField(default=0, help_text="恶意软件数")
+    suspicious_count = models.IntegerField(default=0, help_text="可疑地址数")
+    
+    # 聚合地理信息
+    avg_latitude = models.FloatField(default=0.0, help_text="平均纬度")
+    avg_longitude = models.FloatField(default=0.0, help_text="平均经度")
+    
+    # 时间戳
+    first_seen = models.DateTimeField(auto_now_add=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = '地理位置钓鱼统计'
+        verbose_name_plural = '地理位置钓鱼统计'
+        ordering = ['-phishing_count']
+        indexes = [
+            models.Index(fields=['country', 'city']),
+            models.Index(fields=['-phishing_count']),
+        ]
+    
+    def __str__(self):
+        return f"{self.country}/{self.city or 'All'} - {self.phishing_count} phishing"
+    
+    @classmethod
+    def update_statistics(cls):
+        """更新统计信息"""
+        # 按国家和城市聚合统计
+        from django.db.models import Count, Avg, Q
+        
+        stats = GeoPhishingLocation.objects.values('country', 'city').annotate(
+            total=Count('id'),
+            phishing=Count('id', filter=Q(threat_level='phishing')),
+            malware=Count('id', filter=Q(threat_level='malware')),
+            suspicious=Count('id', filter=Q(threat_level='suspicious')),
+            avg_lat=Avg('latitude'),
+            avg_lon=Avg('longitude'),
+        )
+        
+        for stat in stats:
+            cls.objects.update_or_create(
+                country=stat['country'],
+                city=stat['city'],
+                defaults={
+                    'total_locations': stat['total'],
+                    'phishing_count': stat['phishing'],
+                    'malware_count': stat['malware'],
+                    'suspicious_count': stat['suspicious'],
+                    'avg_latitude': stat['avg_lat'] or 0.0,
+                    'avg_longitude': stat['avg_lon'] or 0.0,
+                }
+            )

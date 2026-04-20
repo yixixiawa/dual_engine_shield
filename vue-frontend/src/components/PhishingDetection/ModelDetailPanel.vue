@@ -72,30 +72,37 @@ const props = defineProps<{
 
 const activeModels = computed(() => {
     const models = []
-    if (props.result.models?.svm || props.result.svm !== undefined) {
+    
+    // 显示原始模型
+    if (props.result.scores_per_model?.original !== undefined) {
         models.push({
-            key: 'svm',
-            name: 'SVM',
-            color: 'blue',
-            score: props.result.models?.svm?.score ?? props.result.svm ?? 0
+            key: 'original',
+            name: 'GTE 原始模型',
+            color: 'purple',
+            score: props.result.scores_per_model.original
         })
     }
-    if (props.result.models?.gte || props.result.gte !== undefined) {
+    
+    // 显示ChiPhish模型
+    if (props.result.scores_per_model?.chiphish !== undefined) {
+        models.push({
+            key: 'chiphish',
+            name: 'GTE ChiPhish模型',
+            color: 'cyan',
+            score: props.result.scores_per_model.chiphish
+        })
+    }
+    
+    // 如果没有scores_per_model，使用score作为fallback
+    if (models.length === 0 && props.result.score !== undefined) {
         models.push({
             key: 'gte',
-            name: 'GTE',
+            name: 'GTE 深度语义检测',
             color: 'purple',
-            score: props.result.models?.gte?.score ?? props.result.gte ?? 0
+            score: props.result.score
         })
     }
-    if (props.result.models?.ngram || props.result.ngram !== undefined) {
-        models.push({
-            key: 'ngram',
-            name: 'N-gram',
-            color: 'orange',
-            score: props.result.models?.ngram?.score ?? props.result.ngram ?? 0
-        })
-    }
+    
     return models
 })
 

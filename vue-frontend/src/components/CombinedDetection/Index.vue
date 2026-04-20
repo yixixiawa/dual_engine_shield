@@ -10,9 +10,7 @@ defineOptions({
   meta: {
     title: '综合检测',
     icon: 'Monitor',
-    badge: '新',
-    badgeType: 'danger',
-    order: 1
+    order: 99
   }
 })
 </script>

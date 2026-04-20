@@ -5,7 +5,8 @@ from django.contrib import admin
 from django.utils.html import format_html
 from .models import (
     DetectionLog, WhitelistEntry, PhishingDetection, 
-    CodeVulnerability, DirectoryScanTask, SystemConfig
+    CodeVulnerability, DirectoryScanTask, SystemConfig,
+    GeoPhishingLocation, GeoPhishingStatistics
 )
 
 
@@ -226,6 +227,145 @@ class SystemConfigAdmin(admin.ModelAdmin):
             value_str += '...'
         return value_str
     value_preview.short_description = '值'
+
+
+# ======================== 地理位置钓鱼追踪管理 ========================
+
+@admin.register(GeoPhishingLocation)
+class GeoPhishingLocationAdmin(admin.ModelAdmin):
+    """地理位置钓鱼追踪管理"""
+    list_display = ('ip_address', 'domain_short', 'country', 'city', 'threat_level_badge', 
+                   'is_phishing_badge', 'risk_score', 'detection_count', 'last_seen')
+    list_filter = ('threat_level', 'is_phishing', 'country', 'source_type', 'last_seen')
+    search_fields = ('ip_address', 'domain', 'url', 'city', 'country')
+    readonly_fields = ('created_at', 'updated_at', 'first_seen', 'last_seen', 'raw_data')
+    
+    fieldsets = (
+        ('基础信息', {
+            'fields': ('ip_address', 'domain', 'url')
+        }),
+        ('物理位置', {
+            'fields': ('country', 'region', 'city', 'latitude', 'longitude', 
+                      'location_name', 'postal_code', 'timezone')
+        }),
+        ('ISP 信息', {
+            'fields': ('org', 'asn')
+        }),
+        ('威胁信息', {
+            'fields': ('threat_level', 'is_phishing', 'threat_reason', 'risk_score')
+        }),
+        ('来源和关联', {
+            'fields': ('source_type', 'source_id', 'phishing_detection')
+        }),
+        ('分析数据', {
+            'fields': ('detection_count', 'confidence')
+        }),
+        ('元数据', {
+            'fields': ('metadata', 'raw_data'),
+            'classes': ('collapse',)
+        }),
+        ('时间戳', {
+            'fields': ('first_seen', 'last_seen', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    ordering = ['-risk_score', '-last_seen']
+    date_hierarchy = 'last_seen'
+    
+    def domain_short(self, obj):
+        """域名缩短显示"""
+        if obj.domain:
+            domain = str(obj.domain)
+            return domain[:30] + '...' if len(domain) > 30 else domain
+        return 'N/A'
+    domain_short.short_description = '域名'
+    
+    def threat_level_badge(self, obj):
+        """威胁等级徽章"""
+        colors = {
+            'safe': '#32CD32',
+            'suspicious': '#FFA500',
+            'phishing': '#FF6347',
+            'malware': '#8B0000',
+            'unknown': '#808080',
+        }
+        color = colors.get(obj.threat_level, '#808080')
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 8px; border-radius: 3px;">{}</span>',
+            color, obj.get_threat_level_display()
+        )
+    threat_level_badge.short_description = '威胁等级'
+    
+    def is_phishing_badge(self, obj):
+        """钓鱼地址徽章"""
+        if obj.is_phishing:
+            return format_html(
+                '<span style="background-color: #FF6347; color: white; padding: 3px 8px; border-radius: 3px;">⚠️ 钓鱼</span>'
+            )
+        return format_html(
+            '<span style="background-color: #32CD32; color: white; padding: 3px 8px; border-radius: 3px;">✓ 安全</span>'
+        )
+    is_phishing_badge.short_description = '钓鱼状态'
+    
+    actions = ['mark_as_phishing', 'mark_as_safe']
+    
+    def mark_as_phishing(self, request, queryset):
+        """标记为钓鱼地址"""
+        updated = 0
+        for obj in queryset:
+            obj.is_phishing = True
+            obj.threat_level = 'phishing'
+            obj.update_risk_score()
+            obj.save()
+            updated += 1
+        self.message_user(request, f'已标记 {updated} 个地址为钓鱼')
+    mark_as_phishing.short_description = '标记为钓鱼地址'
+    
+    def mark_as_safe(self, request, queryset):
+        """标记为安全地址"""
+        updated = 0
+        for obj in queryset:
+            obj.is_phishing = False
+            obj.threat_level = 'safe'
+            obj.update_risk_score()
+            obj.save()
+            updated += 1
+        self.message_user(request, f'已标记 {updated} 个地址为安全')
+    mark_as_safe.short_description = '标记为安全地址'
+
+
+@admin.register(GeoPhishingStatistics)
+class GeoPhishingStatisticsAdmin(admin.ModelAdmin):
+    """地理位置钓鱼统计管理"""
+    list_display = ('country', 'city', 'total_locations', 'phishing_count_badge', 
+                   'malware_count', 'suspicious_count', 'last_updated')
+    list_filter = ('country', 'last_updated')
+    search_fields = ('country', 'city')
+    readonly_fields = ('first_seen', 'last_updated', 'avg_latitude', 'avg_longitude')
+    
+    fieldsets = (
+        ('地理位置', {
+            'fields': ('country', 'city', 'avg_latitude', 'avg_longitude')
+        }),
+        ('统计数据', {
+            'fields': ('total_locations', 'phishing_count', 'malware_count', 'suspicious_count')
+        }),
+        ('时间戳', {
+            'fields': ('first_seen', 'last_updated'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    ordering = ['-phishing_count']
+    
+    def phishing_count_badge(self, obj):
+        """钓鱼计数徽章"""
+        return format_html(
+            '<span style="background-color: #FF6347; color: white; padding: 3px 8px; border-radius: 3px;">{}</span>',
+            obj.phishing_count
+        )
+    phishing_count_badge.short_description = '钓鱼数'
 
 
 # 自定义 admin 站点配置

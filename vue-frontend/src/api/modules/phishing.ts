@@ -1,60 +1,58 @@
 import { apiCall } from "../client"
 
-export interface PhishingDetectPayload {
-    url: string
-    model_type: string
-    threshold: number
-}
-
-export interface ModelPrediction {
-    score: number
-    prediction: number
-}
-
-export interface PhishingFeatures {
-    brand_typo: boolean
-    subdomain_count: number
-    domain_age: number
-    ip_address: boolean
-    url_length: number
-    special_chars: boolean
-    has_dash: boolean
-    tld_suspicious: boolean
-    port_number: boolean
-    protocol_https: boolean
-    dns_record: boolean
-    page_rank: number
-    whois_age: number
-    favicon_match: boolean
-    content_similarity: number
-}
-
 export interface PhishingDetectResponse {
+    api_version: string
+    kind: string
     url: string
     is_phishing: boolean
-    probability: number
-    scan_time: string
-    confidence: number
-    models: {
-        svm: ModelPrediction
-        ngram: ModelPrediction
-        gte: ModelPrediction
+    score: number
+    threshold: number
+    scores_per_model?: {
+        original?: number
+        chiphish?: number
     }
-    features: PhishingFeatures
+    strategy_used?: string
+    latency_ms: number
+    error: string | null
+    token_attribution?: Array<{ token: string; score: number }>
+    timestamp?: string
+}
+
+export interface BatchPhishingDetectResponse {
+    api_version: string
+    kind: string
+    total_urls: number
+    phishing_count: number
+    latency_ms: number
+    results: PhishingDetectResponse[]
+}
+
+export interface PhishingConfigResponse {
+    mode: string
+    threshold: number
+    ensemble_strategy: string
+    weights: { original: number; chiphish: number }
+    available_models: string[]
 }
 
 export const phishingAPI = {
-    detect(url: string, modelType = "combined", threshold = 70): Promise<PhishingDetectResponse> {
-        return apiCall<PhishingDetectResponse>("/api/phishing/detect", "POST", {
-            url,
-            model_type: modelType,
-            threshold: threshold / 100
-        })
+    async detect(url: string, htmlContent?: string, explain = false, explainTopK = 20): Promise<PhishingDetectResponse> {
+        const payload: any = { url }
+        if (htmlContent) payload.html_content = htmlContent
+        if (explain) {
+            payload.explain = true
+            payload.explain_top_k = explainTopK
+        }
+        return apiCall<PhishingDetectResponse>("/detect/fish/", "POST", payload)
     },
-    async batchDetect(urls: string[], modelType = "combined", threshold = 70): Promise<{ results: PhishingDetectResponse[]; total: number }> {
-        const results = await Promise.all(
-            urls.map((url) => this.detect(url, modelType, threshold))
-        )
-        return { results, total: results.length }
+
+    async batchDetect(urls: string[], htmlContents?: Record<string, string>): Promise<BatchPhishingDetectResponse> {
+        const payload: any = { urls }
+        if (htmlContents) payload.html_contents = htmlContents
+        return apiCall<BatchPhishingDetectResponse>("/detect/batch-fish/", "POST", payload)
+    },
+
+    async getConfig(): Promise<PhishingConfigResponse> {
+        return apiCall<PhishingConfigResponse>("/detect/fish-config/", "GET")
     }
 }

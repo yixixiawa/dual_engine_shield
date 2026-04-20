@@ -15,7 +15,7 @@
 
                     <div class="risk-score">
                         <span :class="['risk-level', riskClass]">{{ riskText }}</span>
-                        <div class="score-percent">{{ (result.final * 100).toFixed(1) }}%</div>
+                        <div class="score-percent">{{ (result.score * 100).toFixed(1) }}%</div>
                     </div>
 
                     <p class="risk-desc">{{ riskDesc }}</p>
@@ -32,9 +32,7 @@
 
         <div class="engine-stats">
             <EngineCard title="深度语义分析" description="基于GTE模型的语义向量空间距离计算"
-                :score="result.models?.gte?.score || result.gte || 0" color="primary" />
-            <EngineCard title="特征规则匹配" description="基于SVM的15维特征工程规则检测"
-                :score="result.models?.svm?.score || result.svm || 0" color="info" />
+                :score="result.scores_per_model?.original || result.score || 0" color="primary" />
         </div>
 
         <!-- 完整后端响应数据 -->
@@ -73,41 +71,38 @@ const props = defineProps<{
 }>()
 
 const modelName = computed(() => {
-    const names: Record<string, string> = {
-        svm: 'SVM',
-        gte: 'GTE',
-        ngram: 'N-gram',
-        deep: 'DEEP'
-    }
-    return names[props.model] || props.model.toUpperCase()
+    return 'GTE 深度语义检测'
 })
 
 const isEduDomain = computed(() => false) // 从store获取
 const isIPObfuscate = computed(() => false) // 从store获取
 
 const riskClass = computed(() => {
-    const score = props.result.final
+    const score = props.result.score || 0
+    const threshold = props.result.threshold || 0.5
     if (score >= 0.95) return 'critical'
     if (score >= 0.8) return 'high'
-    if (score >= props.threshold / 100) return 'medium'
+    if (score >= threshold) return 'medium'
     if (score >= 0.3) return 'low'
     return 'safe'
 })
 
 const riskText = computed(() => {
-    const score = props.result.final
+    const score = props.result.score || 0
+    const threshold = props.result.threshold || 0.5
     if (score >= 0.95) return '极高风险'
     if (score >= 0.8) return '高风险'
-    if (score >= props.threshold / 100) return '中风险'
+    if (score >= threshold) return '中风险'
     if (score >= 0.3) return '低风险'
     return '安全'
 })
 
 const riskDesc = computed(() => {
-    const score = props.result.final
+    const score = props.result.score || 0
+    const threshold = props.result.threshold || 0.5
     if (score >= 0.95) return '确认钓鱼攻击特征，立即拦截！'
     if (score >= 0.8) return isIPObfuscate.value ? '检测到IP混淆攻击手法' : '多重钓鱼特征匹配'
-    if (score >= props.threshold / 100) return '存在可疑特征，请谨慎访问'
+    if (score >= threshold) return '存在可疑特征，请谨慎访问'
     if (score >= 0.3) return '轻微异常或新域名'
     return '未检测到钓鱼特征'
 })

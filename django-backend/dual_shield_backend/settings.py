@@ -70,6 +70,10 @@ TIME_ZONE = 'Asia/Shanghai'
 USE_I18N = True
 USE_TZ = True
 
+# ======================== URL 配置 ========================
+# 禁用自动尾部斜杠添加，避免 POST 请求重定向问题
+APPEND_SLASH = False
+
 # ======================== 静态文件 ========================
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'

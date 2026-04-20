@@ -151,31 +151,41 @@ const emit = defineEmits<{
 
     .input-area {
         margin-bottom: 1rem;
+        width: 100%;
 
-        :deep(.el-input-group__append) {
-            padding: 0;
-
-            button {
-                transition: all 0.2s ease;
-
-                &:hover:not(:disabled) {
-                    transform: translateY(-2px);
-                    filter: brightness(1.05);
-                }
-
-                &:active:not(:disabled) {
-                    transform: translateY(0);
-                }
-            }
+        :deep(.el-input) {
+            width: 100%;
         }
 
         :deep(.el-input__wrapper) {
+            padding: 12px 16px;
             transition: all 0.2s ease;
 
             &:hover,
             &:focus-within {
                 box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1),
                             0 0 12px rgba(79, 70, 229, 0.2);
+            }
+        }
+
+        :deep(.el-input-group__append) {
+            padding: 0;
+
+            button {
+                transition: all 0.2s ease;
+                background-color: #4F46E5;
+                border-color: #4F46E5;
+
+                &:hover:not(:disabled) {
+                    transform: translateY(-2px);
+                    filter: brightness(1.05);
+                    background-color: #6366F1;
+                    border-color: #6366F1;
+                }
+
+                &:active:not(:disabled) {
+                    transform: translateY(0);
+                }
             }
         }
     }

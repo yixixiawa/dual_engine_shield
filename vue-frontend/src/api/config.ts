@@ -42,10 +42,7 @@ export const API_CONFIG = {
 
 // 模型选项
 export const PHISHING_MODELS = [
-  { value: 'svm', label: 'SVM 模型' },
-  { value: 'ngram', label: 'N-gram 模型' },
-  { value: 'gte', label: 'GTE 模型' },
-  { value: 'combined', label: '综合模型' },
+  { value: 'gte', label: 'GTE 深度语义检测' },
 ]
 
 export const SUPPORTED_LANGUAGES = [

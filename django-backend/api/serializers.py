@@ -4,7 +4,8 @@
 from rest_framework import serializers
 from .models import (
     DetectionLog, WhitelistEntry, PhishingDetection, 
-    CodeVulnerability, DirectoryScanTask, SystemConfig
+    CodeVulnerability, DirectoryScanTask, SystemConfig,
+    GeoPhishingLocation, GeoPhishingStatistics
 )
 
 
@@ -160,3 +161,72 @@ class SystemConfigSerializer(serializers.ModelSerializer):
         model = SystemConfig
         fields = ['id', 'key', 'value', 'description', 'updated_at']
         read_only_fields = ['updated_at']
+
+
+# ======================== 地理位置钓鱼追踪序列化器 ========================
+
+class GeoPhishingLocationSerializer(serializers.ModelSerializer):
+    """地理位置钓鱼追踪序列化器"""
+    
+    phishing_detection_detail = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = GeoPhishingLocation
+        fields = [
+            'id', 'ip_address', 'domain', 'url',
+            'country', 'region', 'city', 'latitude', 'longitude',
+            'location_name', 'postal_code', 'timezone',
+            'org', 'asn',
+            'threat_level', 'is_phishing', 'threat_reason',
+            'source_type', 'source_id', 'phishing_detection', 'phishing_detection_detail',
+            'detection_count', 'confidence', 'risk_score',
+            'metadata', 'first_seen', 'last_seen',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'first_seen', 'last_seen']
+    
+    def get_phishing_detection_detail(self, obj):
+        """获取关联的钓鱼检测详情"""
+        if obj.phishing_detection:
+            return PhishingDetectionSerializer(obj.phishing_detection).data
+        return None
+
+
+class GeoPhishingLocationListSerializer(serializers.ModelSerializer):
+    """地理位置钓鱼追踪列表序列化器（精简版）"""
+    
+    class Meta:
+        model = GeoPhishingLocation
+        fields = [
+            'id', 'ip_address', 'domain', 
+            'country', 'city', 'latitude', 'longitude',
+            'threat_level', 'is_phishing', 'risk_score',
+            'last_seen'
+        ]
+
+
+class GeoPhishingLocationMapSerializer(serializers.ModelSerializer):
+    """地理位置钓鱼追踪地图序列化器（用于前端globestream可视化）"""
+    
+    class Meta:
+        model = GeoPhishingLocation
+        fields = [
+            'id', 'latitude', 'longitude',
+            'city', 'country', 'ip_address', 'domain',
+            'threat_level', 'is_phishing', 'risk_score',
+            'confidence', 'detection_count'
+        ]
+
+
+class GeoPhishingStatisticsSerializer(serializers.ModelSerializer):
+    """地理位置钓鱼统计序列化器"""
+    
+    class Meta:
+        model = GeoPhishingStatistics
+        fields = [
+            'id', 'country', 'city',
+            'total_locations', 'phishing_count', 'malware_count', 'suspicious_count',
+            'avg_latitude', 'avg_longitude',
+            'first_seen', 'last_updated'
+        ]
+        read_only_fields = ['first_seen', 'last_updated']
