@@ -45,31 +45,39 @@ class PhishingModelLoader:
             (model, tokenizer) 元组
         """
         if model_name in cls._models:
+            logger.info(f"✅ 从缓存加载模型: {model_name}")
             return cls._models[model_name]
         
         if not model_path.is_dir():
-            logger.error(f"模型路径不存在: {model_path}")
+            logger.error(f"❌ 模型路径不存在: {model_path}")
+            logger.error(f"❌ 请检查模型文件夹是否存在和权限")
             return None, None
         
         try:
+            logger.info(f"正在加载模型: {model_name} 从 {model_path}")
             device = cls.get_device()
+            logger.info(f"使用计算设备: {device}")
+            
             model = AutoModelForSequenceClassification.from_pretrained(
                 str(model_path),
                 trust_remote_code=True
             ).to(device)
             model.eval()
+            logger.info(f"✅ 模型已加载到设备: {device}")
             
             tokenizer = AutoTokenizer.from_pretrained(
                 str(model_path),
                 trust_remote_code=True
             )
+            logger.info(f"✅ 分词器已加载")
             
             cls._models[model_name] = (model, tokenizer)
-            logger.info(f"✅ 已加载模型: {model_name} 从 {model_path}")
+            logger.info(f"✅ 已缓存模型: {model_name}")
             return model, tokenizer
             
         except Exception as e:
             logger.error(f"❌ 加载模型失败 {model_name}: {str(e)}")
+            logger.error(f"❌ 请确保模型配置文件（config.json 等）完整存在")
             return None, None
     
     @classmethod

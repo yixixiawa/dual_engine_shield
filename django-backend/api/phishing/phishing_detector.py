@@ -53,12 +53,19 @@ class PhishingDetector:
     def _load_models(self):
         """加载 GTE 原始模型"""
         models_dir = self.models_root / "models"
+        
+        logger.info(f"模型搜索路径: {models_dir}")
 
         model_path = models_dir / "gte_original"
         self._gte_original, self._tok_original = self.loader.load_model(
             model_path, "gte_original"
         )
-        logger.info(f"✅ GTE 原始模型已加载 (设备: {self.device})")
+        
+        if self._gte_original is not None:
+            logger.info(f"✅ GTE 原始模型已加载 (设备: {self.device})")
+        else:
+            logger.error(f"❌ GTE 原始模型加载失败，路径: {model_path}")
+            logger.error(f"❌ 请确保模型文件存在于: {model_path}")
 
     @staticmethod
     def get_hostname(url: str) -> str:

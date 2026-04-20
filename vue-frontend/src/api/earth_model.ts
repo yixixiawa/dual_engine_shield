@@ -2,8 +2,6 @@ import earthFlyLine from "earth-flyline";
 import geojson from "@/assets/world.json";
 import type EarthModel from "@/api/modules/Earth_model";
 
-
-
 export const useEarthModel = () => {
   let chart: any = null;
 

@@ -17,17 +17,17 @@ class IPInfoSchema:
             city TEXT,
             region TEXT,
             country TEXT,
-            loc TEXT,
-            org TEXT,
+            loc TEXT,                          -- 经纬度
+            org TEXT,                          -- ISP
             postal TEXT,
             timezone TEXT,
             hostname TEXT,
-            asn TEXT,
-            status TEXT DEFAULT 'active',
+            asn TEXT,                          -- 自治系统号
+            status TEXT DEFAULT 'active',      -- active, inactive, blocked, expired
             query_count INTEGER DEFAULT 1,
             first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            raw_response TEXT
+            raw_response TEXT                  -- 原始 JSON 响应
         )
     '''
     

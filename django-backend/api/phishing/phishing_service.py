@@ -5,6 +5,7 @@
 """
 import time
 import logging
+import requests
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from pathlib import Path
@@ -60,11 +61,18 @@ class PhishingAnalysisService:
             分析结果字典
         """
         t0 = time.perf_counter()
+        
+        # 规范化 URL - 添加 scheme（http:// 或 https://）
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+            logger.info(f"URL 已规范化: {url}")
 
-        # 获取 HTML 内容
-        html_to_use = html_content or ""
+        # 获取 HTML 内容的优先级：html_content > html_file > 自动从 URL 获取
+        html_to_use = ""
 
-        if html_file and not html_content:
+        if html_content:
+            html_to_use = html_content
+        elif html_file:
             try:
                 html_to_use = Path(html_file).read_text(
                     encoding="utf-8", errors="ignore"
@@ -79,10 +87,23 @@ class PhishingAnalysisService:
                     "error": f"Failed to read HTML file: {str(e)}",
                     "is_phishing": None,
                 }
-
-        if not html_to_use:
-            logger.warning(f"未提供 HTML 内容，仅使用 URL: {url}")
-            html_to_use = ""
+        else:
+            # 自动从 URL 获取 HTML 内容
+            try:
+                logger.info(f"正在从 URL 获取 HTML 内容: {url}")
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+                response = requests.get(url, headers=headers, timeout=10)
+                response.encoding = response.apparent_encoding or 'utf-8'
+                html_to_use = response.text
+                logger.info(f"成功获取 HTML，长度: {len(html_to_use)} 字符")
+            except requests.RequestException as e:
+                logger.warning(f"从 URL 获取 HTML 失败: {str(e)}，将仅使用 URL 进行分析")
+                html_to_use = ""
+            except Exception as e:
+                logger.error(f"获取 HTML 时发生错误: {str(e)}")
+                html_to_use = ""
 
         # 执行预测
         prediction = self.detector.predict(url, html_to_use)
@@ -109,10 +130,12 @@ class PhishingAnalysisService:
             "error": prediction.get("error"),
         }
 
+        # 安全处理 score 值（可能为 None）
+        score_str = f"{result['score']:.4f}" if result['score'] is not None else "N/A"
         logger.info(
             f"分析完成 - URL: {url}, "
             f"是钓鱼: {result['is_phishing']}, "
-            f"分数: {result['score']:.4f}, "
+            f"分数: {score_str}, "
             f"耗时: {latency_ms}ms"
         )
 

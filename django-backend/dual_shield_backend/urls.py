@@ -9,7 +9,7 @@ from rest_framework import routers
 from drf_spectacular.views import SpectacularSwaggerView, SpectacularRedocView, SpectacularAPIView
 from api import views
 from api.phishing import phishing_views
-from api.ipinfo_views import IPInfoView, IPTokenView
+from api.ipinfo import ipinfo_views
 
 # 创建路由器
 router = routers.DefaultRouter()
@@ -39,10 +39,13 @@ urlpatterns = [
     path('api/detect/batch-fish/', phishing_views.PhishingBatchDetectView.as_view(), name='batch-fish-detect'),
     path('api/detect/fish-config/', phishing_views.PhishingConfigView.as_view(), name='fish-config'),
 
-    # IP 地理信息查询
-    path('api/ipinfo/', IPInfoView.as_view(), name='ipinfo'),
-    path('api/ipinfo/<str:ip>/', IPInfoView.as_view(), name='ipinfo-detail'),
-    path('api/ipinfo/token/', IPTokenView.as_view(), name='ipinfo-token'),
+    # IP 地理信息查询 API
+    path('api/ipinfo/query/', ipinfo_views.IPInfoQueryView.as_view(), name='ipinfo-query'),
+    path('api/ipinfo/batch-query/', ipinfo_views.BatchIPInfoQueryView.as_view(), name='ipinfo-batch-query'),
+    path('api/ipinfo/database-info/', ipinfo_views.DatabaseInfoView.as_view(), name='ipinfo-database-info'),
+    path('api/ipinfo/save/', ipinfo_views.IPInfoSaveView.as_view(), name='ipinfo-save'),
+    path('api/ipinfo/batch-save/', ipinfo_views.BatchIPInfoSaveView.as_view(), name='ipinfo-batch-save'),
+    path('api/ipinfo/all/', ipinfo_views.AllIPInfoView.as_view(), name='ipinfo-all'),
 
     # 任务管理 API
     path('api/tasks/<str:task_id>/', views.TaskDetailView.as_view(), name='task-detail'),

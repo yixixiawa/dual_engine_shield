@@ -60,8 +60,7 @@ WSGI_APPLICATION = 'dual_shield_backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-        'CONN_MAX_AGE': 600,  # 连接池超时时间
+        'NAME': BASE_DIR / 'data' / 'db.sqlite3',
     }
 }
 
@@ -162,6 +161,7 @@ LOGGING = {
             'maxBytes': 1024 * 1024 * 10,  # 10MB
             'backupCount': 10,
             'formatter': 'verbose',
+            'encoding': 'utf-8'
         },
         'detection_file': {
             'level': 'INFO',
@@ -170,6 +170,7 @@ LOGGING = {
             'maxBytes': 1024 * 1024 * 10,
             'backupCount': 5,
             'formatter': 'verbose',
+            'encoding': 'utf-8'
         },
     },
     'loggers': {

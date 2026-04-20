@@ -1,7 +1,0 @@
-{
-  "url": "https://www.example.com",
-  "html": null,
-  "crawl": true,
-  "explain": true,
-  "explain_top_k": 20
-}

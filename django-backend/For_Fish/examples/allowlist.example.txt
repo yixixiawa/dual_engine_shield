@@ -1,2 +1,0 @@
-# 域名白名单：每行一个注册域，命中则强制判为正常（与主项目 detect_single 行为一致）
-# example.edu.cn

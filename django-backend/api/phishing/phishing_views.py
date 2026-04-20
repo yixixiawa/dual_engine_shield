@@ -4,6 +4,7 @@
 RESTful API 端点
 """
 import logging
+from pathlib import Path
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -24,7 +25,9 @@ def get_phishing_service() -> PhishingAnalysisService:
     if _phishing_service is None:
         try:
             phishing_config = getattr(settings, 'PHISHING_DETECTION', {})
+            # 传递正确的 models_root（指向 django-backend 目录）
             _phishing_service = PhishingAnalysisService(
+                models_root=settings.BASE_DIR,
                 phish_threshold=phishing_config.get('threshold', 0.5),
             )
             logger.info("✅ 钓鱼检测服务已初始化 (GTE 语义模型)")
@@ -41,9 +44,15 @@ class PhishingDetectView(APIView):
 
     POST /api/detect/fish/
     {
+        "url": "https://example.com"
+    }
+    
+    系统会自动从该 URL 获取网页内容进行分析。
+    如需指定HTML内容，可传入可选参数：
+    {
         "url": "https://example.com",
-        "html_content": "<html>...</html>",  # 可选
-        "html_file": "/path/to/file.html"    # 可选
+        "html_content": "<html>...</html>",  # 可选：指定HTML内容
+        "html_file": "/path/to/file.html"    # 可选：本地HTML文件路径
     }
     """
 

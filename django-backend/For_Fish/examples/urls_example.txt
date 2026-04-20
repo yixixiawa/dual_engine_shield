@@ -1,3 +1,0 @@
-# 每行一个 URL（可带或不带 https://）
-# https://www.baidu.com
-# http://example.com

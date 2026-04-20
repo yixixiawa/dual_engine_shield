@@ -22,8 +22,11 @@ django-backend/
 │   ├── db.py                        # IPinfo 数据库操作
 │   ├── admin.py                     # Django admin 配置
 │   ├── apps.py                      # 应用配置
-│   ├── ipinfo_models.py             # IPinfo 相关模型
 │   ├── management/                  # 管理命令
+│   ├── ipinfo/                      # IP 地理信息查询模块
+│   │   ├── ipinfo_views.py          # IPinfo API 视图（6个接口）
+│   │   ├── ipinfo_serializers.py    # IPinfo 序列化器
+│   │   └── __init__.py
 │   └── phishing/                    # GTE 双模型钓鱼检测模块
 │       ├── phishing_detector.py     # 核心检测逻辑
 │       ├── phishing_models.py       # 模型加载器
@@ -51,12 +54,6 @@ pip install -r requirements.txt
 
 ```bash
 python manage.py migrate
-```
-
-### 3. 创建超级用户（可选，用于 Django Admin）
-
-```bash
-python manage.py createsuperuser
 ```
 
 ### 4. 运行开发服务器
@@ -101,7 +98,7 @@ python manage.py runserver 0.0.0.0:8080
 ```json
 {
   "status": "healthy",
-  "timestamp": "2026-04-20T12:00:00+00:00",
+  "timestamp": "2026-04-20T10:18:59+00:00",
   "services": {
     "database": "connected",
     "filesystem": "accessible",
@@ -111,6 +108,11 @@ python manage.py runserver 0.0.0.0:8080
     }
   }
 }
+```
+
+**测试命令**：
+```bash
+curl -X GET http://localhost:8080/api/health/
 ```
 
 ---
@@ -149,8 +151,16 @@ python manage.py runserver 0.0.0.0:8080
 **请求体**：
 ```json
 {
+  "url": "https://example.com"
+}
+```
+
+系统会自动从该 URL 获取网页内容进行分析。如需指定 HTML 内容，可添加可选参数：
+
+```json
+{
   "url": "https://example.com",
-  "html_content": "<html>...</html>"
+  "html_content": "<html>...</html>"  # 可选：直接指定HTML内容
 }
 ```
 
@@ -184,6 +194,14 @@ python manage.py runserver 0.0.0.0:8080
 **POST** `/api/detect/batch-fish/`
 
 **请求体**：
+```json
+{
+  "urls": ["https://url1.com", "https://url2.com"]
+}
+```
+
+系统会自动从每个 URL 获取网页内容进行分析。如需指定某些 URL 的 HTML 内容，可添加可选参数：
+
 ```json
 {
   "urls": ["https://url1.com", "https://url2.com"],
@@ -227,7 +245,201 @@ python manage.py runserver 0.0.0.0:8080
 
 ---
 
-### 三、代码漏洞检测 API
+### 三、IP 地理信息查询 API
+
+#### 1. 查询单个 IP 信息
+**POST** `/api/ipinfo/query/`
+
+**请求体**：
+```json
+{
+  "ip_address": "8.8.8.8",
+  "use_cache": true,
+  "use_api_key": true
+}
+```
+
+**响应**：
+```json
+{
+  "status": "success",
+  "source": "api",
+  "ip_id": 1,
+  "data": {
+    "ip": "8.8.8.8",
+    "city": "Mountain View",
+    "region": "California",
+    "country": "US",
+    "loc": "37.4192,-122.0574",
+    "org": "AS15169 Google LLC",
+    "postal": "94043",
+    "timezone": "America/Los_Angeles",
+    "hostname": "dns.google"
+  }
+}
+```
+
+**GET 查询**：
+`GET /api/ipinfo/query/?ip=8.8.8.8&use_cache=true`
+
+#### 2. 批量查询 IP 信息
+**POST** `/api/ipinfo/batch-query/`
+
+**请求体**：
+```json
+{
+  "ip_addresses": ["8.8.8.8", "1.1.1.1"],
+  "use_cache": true
+}
+```
+
+**响应**：
+```json
+{
+  "status": "success",
+  "total": 2,
+  "cached": 1,
+  "queried": 1,
+  "failed": 0,
+  "results": [
+    {
+      "ip": "8.8.8.8",
+      "source": "cache",
+      "data": { ... }
+    },
+    {
+      "ip": "1.1.1.1",
+      "source": "api",
+      "ip_id": 2,
+      "data": { ... }
+    }
+  ]
+}
+```
+
+#### 3. 获取数据库统计信息
+**GET** `/api/ipinfo/database-info/`
+
+**响应**：
+```json
+{
+  "status": "success",
+  "database_info": {
+    "total_ips": 150,
+    "active_ips": 140,
+    "inactive_ips": 10,
+    "countries_count": 45,
+    "last_updated": "2026-04-20T12:00:00Z"
+  },
+  "api_key_stats": {
+    "total_keys": 2,
+    "active_keys": 1,
+    "today_queries": 100
+  },
+  "query_stats_7days": [
+    {
+      "query_date": "2026-04-20",
+      "total_queries": 45,
+      "success_queries": 43,
+      "avg_response_time": 1234.5
+    }
+  ]
+}
+```
+
+#### 4. 保存单个 IP 信息
+**POST** `/api/ipinfo/save/`
+
+**请求体**：
+```json
+{
+  "ip_address": "8.8.8.8",
+  "city": "Mountain View",
+  "region": "California",
+  "country": "US",
+  "loc": "37.4192,-122.0574",
+  "org": "AS15169 Google LLC",
+  "postal": "94043",
+  "timezone": "America/Los_Angeles",
+  "hostname": "dns.google",
+  "status": "active"
+}
+```
+
+**响应**：
+```json
+{
+  "status": "success",
+  "message": "IP 信息已保存",
+  "ip_id": 1,
+  "data": { ... }
+}
+```
+
+#### 5. 批量保存 IP 信息
+**POST** `/api/ipinfo/batch-save/`
+
+**请求体**：
+```json
+{
+  "ip_list": [
+    {
+      "ip_address": "8.8.8.8",
+      "city": "Mountain View",
+      "country": "US"
+    },
+    {
+      "ip_address": "1.1.1.1",
+      "city": "Los Angeles",
+      "country": "US"
+    }
+  ]
+}
+```
+
+**响应**：
+```json
+{
+  "status": "success",
+  "total": 2,
+  "success": 2,
+  "failed": 0,
+  "results": [
+    {
+      "ip": "8.8.8.8",
+      "status": "success",
+      "ip_id": 1
+    },
+    {
+      "ip": "1.1.1.1",
+      "status": "success",
+      "ip_id": 2
+    }
+  ]
+}
+```
+
+#### 6. 获取所有 IP 信息（分页）
+**GET** `/api/ipinfo/all/?limit=100&offset=0`
+
+**响应**：
+```json
+{
+  "status": "success",
+  "total": 150,
+  "limit": 100,
+  "offset": 0,
+  "count": 100,
+  "data": [
+    { ... },
+    { ... }
+  ]
+}
+```
+
+---
+
+### 四、代码漏洞检测 API
 
 #### 1. 检测单个代码片段
 **POST** `/api/detect/code/`
@@ -345,7 +557,7 @@ python manage.py runserver 0.0.0.0:8080
 
 ---
 
-### 四、任务管理 API
+### 五、任务管理 API
 
 #### 1. 获取任务详情
 **GET** `/api/tasks/<task_id>/`
@@ -389,7 +601,7 @@ python manage.py runserver 0.0.0.0:8080
 
 ---
 
-### 五、检测日志 API
+### 六、检测日志 API
 
 #### 1. 列出所有检测日志
 **GET** `/api/detection-logs/`
@@ -441,7 +653,7 @@ python manage.py runserver 0.0.0.0:8080
 
 ---
 
-### 六、白名单 API
+### 七、白名单 API
 
 #### 1. 列出白名单条目
 **GET** `/api/whitelist/`
@@ -493,7 +705,7 @@ python manage.py runserver 0.0.0.0:8080
 
 ---
 
-### 七、统计和报告 API
+### 八、统计和报告 API
 
 #### 1. 统计概览
 **GET** `/api/stats/overview/`
@@ -530,7 +742,7 @@ python manage.py runserver 0.0.0.0:8080
 
 ---
 
-### 八、API 文档
+### 九、API 文档
 
 - **Swagger UI**: `http://localhost:8080/api/docs/`
 - **ReDoc**: `http://localhost:8080/api/redoc/`
@@ -648,6 +860,15 @@ python manage.py runserver 0.0.0.0:8080
 2. **PhishingBatchDetectView** - 批量 URL 检测
 3. **PhishingConfigView** - 配置查询
 
+### api/ipinfo/ipinfo_views.py - IP 地理信息查询（6个视图）
+
+1. **IPInfoQueryView** - 单个 IP 查询接口（调用后端 API）
+2. **BatchIPInfoQueryView** - 批量 IP 查询接口
+3. **DatabaseInfoView** - 获取数据库统计信息接口
+4. **IPInfoSaveView** - 保存单个 IP 信息接口
+5. **BatchIPInfoSaveView** - 批量保存 IP 信息接口
+6. **AllIPInfoView** - 获取所有 IP 信息接口（分页）
+
 ### api/serializers.py - 数据序列化器（8个）
 
 1. DetectionLogSerializer
@@ -692,6 +913,38 @@ CMD ["gunicorn", "dual_shield_backend.wsgi:application", "--bind", "0.0.0.0:8000
 ```
 
 ## 故障排除
+
+### 1. 钓鱼检测返回 "模型未加载" 错误
+
+**错误示例**:
+```json
+{
+  "error": "模型未加载",
+  "is_phishing": null,
+  "score": null
+}
+```
+
+**解决方案**:
+确保 Django 应用正确传递 `models_root` 参数到 `PhishingAnalysisService`。
+- ✅ 已在 `api/phishing/phishing_views.py` 中配置为使用 `settings.BASE_DIR`
+- ✅ 模型文件位置: `django-backend/models/gte_original/` 和 `django-backend/models/gte_chiphish/`
+- ✅ 若问题仍存在，检查模型文件夹权限和完整性
+
+### 2. 健康检查端点 404/500 错误
+
+**原因**: 
+- POST 请求到 GET 端点，或 URL 末尾缺少斜杠 (`/`)
+- Django 的 `APPEND_SLASH` 中间件无法为 POST 请求自动添加斜杠
+
+**解决方案**:
+- 使用 **GET** 请求（而非 POST）
+- 确保 URL 末尾有斜杠: `/api/health/`
+
+**正确测试方式**:
+```bash
+curl -X GET http://localhost:8080/api/health/
+```
 
 ### VulnScan API 导入失败
 

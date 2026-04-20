@@ -17,6 +17,8 @@ import sys
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# 导入简洁版表结构（model/ 中无内联索引，api/ 中有内联索引会导致 SQLite 错误）
+# SQLite 不支持在 CREATE TABLE 中定义索引，必须使用单独的 CREATE INDEX 语句
 from model.ipinfo_models import IPInfoSchema, IPStatus, APIProvider, TaskStatus, ListType
 
 logger = logging.getLogger(__name__)
@@ -83,24 +85,35 @@ class IPInfoDatabase:
     # ==================== 表管理 ====================
     
     def create_tables(self):
-        """创建所有相关数据表"""
+        """创建所有相关数据表，支持增量创建（避免重复创建）"""
         with self.get_cursor() as cursor:
             # 创建所有表
             for table_name, table_sql in IPInfoSchema.TABLES:
                 try:
-                    cursor.execute(table_sql)
-                    logger.info(f"✅ 表 '{table_name}' 创建成功")
+                    # 检查表是否已存在
+                    cursor.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                        (table_name,)
+                    )
+                    if cursor.fetchone():
+                        logger.info(f"[OK] Table '{table_name}' already exists (已创建)")
+                    else:
+                        cursor.execute(table_sql)
+                        logger.info(f"[OK] Table '{table_name}' created successfully (创建成功)")
                 except Exception as e:
-                    logger.error(f"❌ 表 '{table_name}' 创建失败: {str(e)}")
+                    logger.error(f"[ERROR] Table '{table_name}' creation failed: {str(e)}")
             
             # 创建所有索引
             for index_sql in IPInfoSchema.INDEXES:
                 try:
                     cursor.execute(index_sql)
                 except Exception as e:
-                    logger.warning(f"索引创建失败: {str(e)}")
+                    # 索引可能已存在，不记录为错误
+                    if 'already exists' not in str(e).lower():
+                        logger.debug(f"Index creation info: {str(e)}")
             
-            print("✅ IPinfo 数据库表创建成功")
+            print("[OK] IPinfo database tables initialized successfully (数据库初始化完成)")
+
     
     # ==================== IP 信息管理 ====================
     
