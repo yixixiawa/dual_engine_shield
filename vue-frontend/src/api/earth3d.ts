@@ -14,8 +14,8 @@ export const useEarth3D = () => {
     dragConfig: {
       rotationSpeed: 1,
       inertiaFactor: 10,
-      disableX: true,
-      disableY: true
+      disableX: false,
+      disableY: false
     }
   });
 };

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>XSS Vulnerable Page</title>
+</head>
+<body>
+    <h1>User Profile</h1>
+    <div id="user-info">
+        <!-- XSS Vulnerability: innerHTML with user input -->
+        <script>
+            const username = new URLSearchParams(window.location.search).get('username');
+            document.getElementById('user-info').innerHTML = '<h2>Welcome, ' + username + '</h2>';
+        </script>
+    </div>
+
+    <!-- XSS Vulnerability: document.write -->
+    <script>
+        const userComment = new URLSearchParams(window.location.search).get('comment');
+        document.write('<div class="comment">' + userComment + '</div>');
+    </script>
+
+    <!-- XSS Vulnerability: eval -->
+    <script>
+        const userInput = new URLSearchParams(window.location.search).get('callback');
+        eval(userInput);
+    </script>
+
+    <!-- XSS Vulnerability: event handlers -->
+    <img src="x" onerror="alert('XSS Attack!')">
+    <button onclick="eval(new URLSearchParams(window.location.search).get('action'))">Click Me</button>
+
+    <!-- iframe injection vulnerability -->
+    <iframe src="javascript:alert('XSS')"></iframe>
+</body>
+</html>

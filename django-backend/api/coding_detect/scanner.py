@@ -168,13 +168,13 @@ class VulnScanner:
         results = []
         for code in extracted_codes:
             result = self.detector.detect_single(
-                code=code.source_code,
-                language=code.language,
+                code=code.code,
+                language=code.location.language,
                 cwe_ids=cwe_ids
             )
             
             # 更新代码位置信息
-            result.code.location.file = str(file_path)
+            result.code.location.file_path = str(file_path)
             
             results.append(result)
         
@@ -282,8 +282,8 @@ class VulnScanner:
         for code in extracted_codes:
             try:
                 result = self.detector.detect_single(
-                    code=code.source_code,
-                    language=code.language,
+                    code=code.code,
+                    language=code.location.language,
                     cwe_ids=cwe_ids
                 )
                 

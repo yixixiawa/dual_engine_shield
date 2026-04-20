@@ -157,31 +157,28 @@ If code is safe:
             )
             
             # 2. 配置量化
-            quantization_config = None
             if self.use_quantization:
                 logger.info("使用量化配置...")
-                try:
-                    # 尝试导入 bitsandbytes
-                    import bitsandbytes as bnb  # noqa: F401
-                    
-                    # 根据配置选择量化方式
-                    if QUANTIZATION_CONFIG.get('load_in_8bit', False):
-                        logger.info("🔥 使用8-bit量化（INT8），速度更快，适合RTX 4060 8GB")
-                        quantization_config = BitsAndBytesConfig(
-                            load_in_8bit=True,
-                            llm_int8_threshold=6.0  # 异常值阈值
-                        )
-                    elif QUANTIZATION_CONFIG.get('load_in_4bit', False):
-                        logger.info("使用4-bit量化（NF4），显存占用更小")
-                        quantization_config = BitsAndBytesConfig(
-                            load_in_4bit=QUANTIZATION_CONFIG['load_in_4bit'],
-                            bnb_4bit_use_double_quant=QUANTIZATION_CONFIG['bnb_4bit_use_double_quant'],
-                            bnb_4bit_quant_type=QUANTIZATION_CONFIG['bnb_4bit_quant_type'],
-                            bnb_4bit_compute_dtype=getattr(torch, QUANTIZATION_CONFIG['bnb_4bit_compute_dtype'])
-                        )
-                except ImportError:
-                    logger.warning("⚠️ bitsandbytes 不可用，使用 float16 精度代替量化")
+                
+                # 根据配置选择量化方式
+                if QUANTIZATION_CONFIG.get('load_in_8bit', False):
+                    logger.info("🔥 使用8-bit量化（INT8），速度更快，适合RTX 4060 8GB")
+                    quantization_config = BitsAndBytesConfig(
+                        load_in_8bit=True,
+                        llm_int8_threshold=6.0  # 异常值阈值
+                    )
+                elif QUANTIZATION_CONFIG.get('load_in_4bit', False):
+                    logger.info("使用4-bit量化（NF4），显存占用更小")
+                    quantization_config = BitsAndBytesConfig(
+                        load_in_4bit=QUANTIZATION_CONFIG['load_in_4bit'],
+                        bnb_4bit_use_double_quant=QUANTIZATION_CONFIG['bnb_4bit_use_double_quant'],
+                        bnb_4bit_quant_type=QUANTIZATION_CONFIG['bnb_4bit_quant_type'],
+                        bnb_4bit_compute_dtype=getattr(torch, QUANTIZATION_CONFIG['bnb_4bit_compute_dtype'])
+                    )
+                else:
                     quantization_config = None
+            else:
+                quantization_config = None
             
             # 3. 加载模型
             logger.info("加载模型权重...")
@@ -272,7 +269,7 @@ If code is safe:
     
     def detect(self, code: str, language: str, cwe_ids: Optional[List[str]] = None) -> VulnerabilityResult:
         """
-        检测代码漏洞（主方法，包装 detect_single）
+        检测单个代码片段 (兼容性方法，调用 detect_single)
         
         Args:
             code: 代码片段

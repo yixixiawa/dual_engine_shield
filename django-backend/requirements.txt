@@ -8,5 +8,3 @@ torch>=2.0.0
 transformers>=4.30.0
 drf-spectacular>=0.26.5
 pyyaml>=6.0
-bitsandbytes>=0.41.0
-dnspython>=2.4.0

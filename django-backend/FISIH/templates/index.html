@@ -1,0 +1,2965 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>双擎智盾 | 智能安全检测平台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-light: #60a5fa;
+            --secondary: #8b5cf6;
+            --accent: #06b6d4;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --critical: #dc2626;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 25%, #f1f5f9 50%, #e0e7ff 75%, #f0f9ff 100%);
+            background-attachment: fixed;
+            background-size: 400% 400%;
+            animation: gradientShift 20s ease infinite;
+            color: #1e293b;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Glass morphism */
+        .glass {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 
+                        0 2px 8px rgba(0, 0, 0, 0.04),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        }
+
+        .glass-dark {
+            background: rgba(30, 41, 59, 0.9);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Navigation */
+        .nav-item { 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            cursor: pointer; 
+            border-left: 3px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+        .nav-item:hover { 
+            background: rgba(59, 130, 246, 0.08); 
+        }
+        .nav-item.active { 
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.12), transparent); 
+            border-left-color: #3b82f6; 
+        }
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 3px;
+            background: linear-gradient(to bottom, #3b82f6, #8b5cf6);
+        }
+        .nav-item.vuln-nav.active { 
+            background: linear-gradient(90deg, rgba(139, 92, 246, 0.12), transparent); 
+            border-left-color: #8b5cf6; 
+        }
+        .nav-item.vuln-nav.active::before {
+            background: linear-gradient(to bottom, #8b5cf6, #ec4899);
+        }
+
+        .module { display: none; animation: fadeIn 0.4s ease-out; }
+        .module.active { display: block; }
+
+        /* Risk levels */
+        .risk-safe { color: #059669; border-color: #10b981; }
+        .risk-low { color: #2563eb; border-color: #3b82f6; }
+        .risk-medium { color: #d97706; border-color: #f59e0b; }
+        .risk-high { color: #dc2626; border-color: #ef4444; }
+        .risk-critical { color: #991b1b; border-color: #dc2626; animation: pulse-red 2s infinite; }
+
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.3); }
+            50% { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); }
+        }
+
+        .scan-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+            animation: scan 2s linear infinite;
+            opacity: 0.6;
+        }
+        @keyframes scan {
+            0% { top: 0%; }
+            100% { top: 100%; }
+        }
+
+        .feature-bar { transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        .model-btn { 
+            transition: all 0.3s ease; 
+            border: 2px solid rgba(59, 130, 246, 0.15);
+            background: rgba(255, 255, 255, 0.6);
+            position: relative;
+            overflow: hidden;
+        }
+        .model-btn:hover { 
+            border-color: rgba(59, 130, 246, 0.4); 
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px -8px rgba(59, 130, 246, 0.2);
+            background: rgba(255, 255, 255, 0.9);
+        }
+        .model-btn.active { 
+            border-color: #3b82f6; 
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.05));
+            box-shadow: 0 0 24px rgba(59, 130, 246, 0.2);
+        }
+        .model-btn.active::after {
+            content: '✓';
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .lang-btn, .detect-type-btn {
+            transition: all 0.3s ease;
+            border: 2px solid rgba(139, 92, 246, 0.15);
+            background: rgba(255, 255, 255, 0.6);
+        }
+        .lang-btn:hover, .detect-type-btn:hover {
+            border-color: rgba(139, 92, 246, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px -8px rgba(139, 92, 246, 0.2);
+            background: rgba(255, 255, 255, 0.9);
+        }
+        .lang-btn.active, .detect-type-btn.active {
+            border-color: #8b5cf6;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.05));
+            box-shadow: 0 0 24px rgba(139, 92, 246, 0.2);
+        }
+
+        .vuln-card {
+            border-left: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .vuln-card:hover {
+            transform: translateX(5px);
+            background: rgba(139, 92, 246, 0.03);
+        }
+        .vuln-card.critical { border-left-color: #dc2626; background: rgba(254, 226, 226, 0.5); }
+        .vuln-card.high { border-left-color: #ef4444; background: rgba(254, 242, 242, 0.5); }
+        .vuln-card.medium { border-left-color: #f59e0b; background: rgba(255, 251, 235, 0.5); }
+        .vuln-card.low { border-left-color: #3b82f6; background: rgba(239, 246, 255, 0.5); }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+            border: 2px solid white;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+
+        .metric-value { font-variant-numeric: tabular-nums; font-weight: 800; }
+
+        .code-editor {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            transition: all 0.3s ease;
+            color: #e2e8f0;
+        }
+        .code-editor:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.2);
+        }
+
+        .line-numbers {
+            color: #64748b;
+            text-align: right;
+            padding-right: 1rem;
+            border-right: 1px solid rgba(139, 92, 246, 0.2);
+            user-select: none;
+            background: rgba(15, 23, 42, 0.95);
+        }
+
+        .edu-badge {
+            background: linear-gradient(135deg, #059669, #10b981);
+            font-size: 0.75rem;
+            padding: 2px 10px;
+            border-radius: 9999px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .engine-card { 
+            transition: all 0.3s ease; 
+            background: rgba(255, 255, 255, 0.6);
+        }
+        .engine-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .tab-btn {
+            transition: all 0.3s ease;
+            border-bottom: 2px solid transparent;
+        }
+        .tab-btn:hover {
+            background: rgba(139, 92, 246, 0.05);
+        }
+        .tab-btn.active {
+            border-bottom-color: #8b5cf6;
+            color: #8b5cf6;
+            background: rgba(139, 92, 246, 0.08);
+        }
+
+        .status-pending { background: rgba(245, 158, 11, 0.15); color: #d97706; }
+        .status-processing { background: rgba(59, 130, 246, 0.15); color: #2563eb; }
+        .status-completed { background: rgba(16, 185, 129, 0.15); color: #059669; }
+        .status-failed { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .input-light {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        .input-light:focus {
+            background: rgba(255, 255, 255, 1);
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hover-lift {
+            transition: all 0.3s ease;
+        }
+        .hover-lift:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            transition: width 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 左侧导航栏 -->
+    <aside class="w-72 glass border-r border-white/60 flex flex-col fixed h-full z-50" style="background: rgba(255,255,255,0.85);">
+        <!-- Logo 区域 -->
+        <div class="p-6 border-b border-gray-200/50 text-center">
+            <div class="text-3xl font-black tracking-tight" style="font-family: 'Inter', sans-serif; color: #1a1a2e; text-shadow: 2px 2px 4px rgba(0,0,0,0.1); letter-spacing: -0.02em;">
+                <span style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">双擎智盾</span>
+            </div>
+            <div class="text-xs font-medium text-gray-500 mono mt-1">Dual Engine Shield v3.0</div>
+            <div class="mt-2 text-[10px] text-gray-400 uppercase tracking-widest font-medium">智能安全检测平台</div>
+        </div>
+
+        <nav class="flex-1 py-6 space-y-2 px-3">
+            <div onclick="switchModule('combined')" id="nav-combined" class="nav-item vuln-nav rounded-xl px-5 py-4 flex items-center space-x-3 cursor-pointer">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-pink-500 via-rose-500 to-orange-500 flex items-center justify-center shadow-lg shadow-pink-500/25">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="font-semibold text-sm text-gray-800">综合检测</div>
+                    <div class="text-xs text-gray-500">Combined Detection</div>
+                    <div class="flex items-center mt-1.5 space-x-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-pink-400"></span>
+                        <span class="text-[10px] text-gray-400">钓鱼→漏洞全检测</span>
+                    </div>
+                </div>
+            </div>
+
+            <div onclick="switchModule('phishing')" id="nav-phishing" class="nav-item active rounded-xl px-5 py-4 flex items-center space-x-3 cursor-pointer">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="font-semibold text-sm text-gray-800">钓鱼检测</div>
+                    <div class="text-xs text-gray-500">Phishing Detection</div>
+                    <div class="flex items-center mt-1.5 space-x-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                        <span class="text-[10px] text-gray-400">SVM/GTE/N-gram</span>
+                    </div>
+                </div>
+            </div>
+
+            <div onclick="switchModule('vulnerability')" id="nav-vulnerability" class="nav-item vuln-nav rounded-xl px-5 py-4 flex items-center space-x-3 cursor-pointer">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/25">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="font-semibold text-sm text-gray-800">漏洞检测</div>
+                    <div class="text-xs text-gray-500">Vulnerability Scan</div>
+                    <div class="flex items-center mt-1.5 space-x-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                        <span class="text-[10px] text-gray-400">VR</span>
+                    </div>
+                </div>
+            </div>
+
+            <div onclick="switchModule('tasks')" id="nav-tasks" class="nav-item vuln-nav rounded-xl px-5 py-4 flex items-center space-x-3 cursor-pointer">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="font-semibold text-sm text-gray-800">任务列表</div>
+                    <div class="text-xs text-gray-500">Task Management</div>
+                    <div class="flex items-center mt-1.5 space-x-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span class="text-[10px] text-gray-400">查看所有任务</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="p-4 border-t border-gray-200/50">
+            <div class="glass rounded-xl p-4 space-y-3">
+                <div class="flex items-center justify-between text-xs">
+                    <span class="text-gray-500 font-medium">系统状态</span>
+                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-500/30"></span>
+                </div>
+                <div class="text-xs text-gray-500 space-y-2">
+                    <div class="font-medium text-gray-700 mb-1">钓鱼检测模型</div>
+                    <div class="grid grid-cols-2 gap-1 ml-2">
+                        <div class="flex items-center space-x-1">
+                            <span class="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                            <span class="mono">SVM</span>
+                        </div>
+                        <span class="text-green-600 font-semibold text-right">就绪</span>
+                        <div class="flex items-center space-x-1">
+                            <span class="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
+                            <span class="mono">GTE</span>
+                        </div>
+                        <span class="text-green-600 font-semibold text-right">就绪</span>
+                        <div class="flex items-center space-x-1">
+                            <span class="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
+                            <span class="mono">N-gram</span>
+                        </div>
+                        <span class="text-green-600 font-semibold text-right">就绪</span>
+                    </div>
+                    <div class="border-t border-gray-200/50 pt-2 mt-2">
+                        <div class="font-medium text-gray-700 mb-1">漏洞检测模型</div>
+                        <div class="flex justify-between items-center ml-2">
+                            <div class="flex items-center space-x-1">
+                                <span class="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
+                                <span class="mono">VR</span>
+                            </div>
+                            <span class="text-green-600 font-semibold">就绪</span>
+                        </div>
+                    </div>
+                    <div class="border-t border-gray-200/50 pt-2 mt-2">
+                        <div class="flex justify-between items-center">
+                            <span>待处理任务:</span>
+                            <span id="pendingTasks" class="text-gray-700 font-semibold">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 ml-72 p-8">
+
+        <!-- 模块 1: 综合检测 -->
+        <div id="module-combined" class="module max-w-6xl mx-auto space-y-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center text-sm text-gray-600 glass px-4 py-2.5 rounded-full">
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+                    <span class="font-medium">全功能就绪</span>
+                </div>
+                <button onclick="generateCombinedReport()" class="text-gray-600 hover:text-gray-900 transition text-sm font-medium glass px-4 py-2.5 rounded-full hover:bg-white/80">
+                    <svg class="w-4 h-4 inline mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    生成报告
+                </button>
+            </div>
+
+            <div class="glass rounded-2xl p-8 space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">🔍 综合安全检测</h2>
+                    <p class="text-gray-600">输入目标URL，执行钓鱼检测和漏洞检测一体化分析</p>
+                </div>
+
+                <div class="flex space-x-4">
+                    <div class="flex-1">
+                        <input type="url" id="combinedUrlInput" class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-pink-500 focus:ring-2 focus:ring-pink-200 transition" placeholder="输入目标网址 (https://example.com)" />
+                    </div>
+                    <button onclick="startCombinedDetection()" id="combinedDetectBtn" class="px-8 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all flex items-center space-x-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span>开始综合检测</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="combinedProgressPanel" class="glass rounded-2xl p-8 space-y-4 hidden">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">检测进度</h3>
+                <div class="space-y-3">
+                    <div id="step-crawl" class="flex items-center space-x-3 p-4 rounded-lg bg-gray-50">
+                        <div id="progress-crawl-icon" class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex justify-between items-center">
+                                <span class="font-medium text-gray-900">爬虫抓取</span>
+                                <span id="progress-crawl-status" class="text-sm text-gray-500">等待中</span>
+                            </div>
+                            <div class="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div id="progress-crawl-bar" class="h-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="step-phishing" class="flex items-center space-x-3 p-4 rounded-lg bg-gray-50">
+                        <div id="progress-phishing-icon" class="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex justify-between items-center">
+                                <span class="font-medium text-gray-900">钓鱼检测</span>
+                                <span id="progress-phishing-status" class="text-sm text-gray-500">等待中</span>
+                            </div>
+                            <div class="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div id="progress-phishing-bar" class="h-full bg-gradient-to-r from-yellow-400 to-orange-600 transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="step-vuln" class="flex items-center space-x-3 p-4 rounded-lg bg-gray-50">
+                        <div id="progress-vuln-icon" class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                            <svg class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex justify-between items-center">
+                                <span class="font-medium text-gray-900">漏洞检测</span>
+                                <span id="progress-vuln-status" class="text-sm text-gray-500">等待中</span>
+                            </div>
+                            <div class="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div id="progress-vuln-bar" class="h-full bg-gradient-to-r from-red-400 to-rose-600 transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="combinedResultPanel" class="glass rounded-2xl p-8 space-y-6 hidden">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">检测结果</h3>
+                <div id="combinedPhishingResult" class="p-4 rounded-lg"></div>
+                <div id="combinedVulnResult" class="p-4 rounded-lg"></div>
+            </div>
+
+            <div id="vulnDetailSection" class="glass rounded-2xl p-8 space-y-4 hidden">
+                <h3 class="text-lg font-bold text-gray-900">漏洞详情</h3>
+                <div id="vulnDetailContent" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <!-- 模块 2: 钓鱼检测 -->
+        <div id="module-phishing" class="module active max-w-6xl mx-auto space-y-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center text-sm text-gray-600 glass px-4 py-2.5 rounded-full">
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+                    <span id="currentModelDisplay" class="font-medium">SVM 模式就绪</span>
+                </div>
+                <button onclick="toggleWhitelistPanel()" class="text-gray-600 hover:text-gray-900 transition text-sm font-medium glass px-4 py-2.5 rounded-full hover:bg-white/80">
+                    <svg class="w-4 h-4 inline mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                    白名单管理
+                </button>
+            </div>
+
+            <div class="glass rounded-2xl p-6 hover-lift">
+                <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                    </svg>
+                    选择检测模型（点击切换）
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <button onclick="selectModel('svm')" id="model-svm" class="model-btn active rounded-xl p-5 text-left">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xl font-bold text-gray-800">SVM</span>
+                            <span class="text-xs bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg font-mono border border-blue-200">1.62MB</span>
+                        </div>
+                        <p class="text-sm text-gray-500 mb-2">传统特征工程模型</p>
+                        <div class="flex items-center text-xs text-gray-500 space-x-3">
+                            <span class="flex items-center"><span class="w-1.5 h-1.5 bg-blue-500 rounded-full mr-1.5"></span>轻量快速</span>
+                            <span class="text-blue-600 font-bold">94.21% G-mean</span>
+                        </div>
+                    </button>
+
+                    <button onclick="selectModel('gte')" id="model-gte" class="model-btn rounded-xl p-5 text-left">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xl font-bold text-gray-800">GTE</span>
+                            <span class="text-xs bg-purple-100 text-purple-700 px-2.5 py-1 rounded-lg font-mono border border-purple-200">417MB</span>
+                        </div>
+                        <p class="text-sm text-gray-500 mb-2">深度语义理解模型</p>
+                        <div class="flex items-center text-xs text-gray-500 space-x-3">
+                            <span class="flex items-center"><span class="w-1.5 h-1.5 bg-purple-500 rounded-full mr-1.5"></span>高精度</span>
+                            <span class="text-purple-600 font-bold">98.95% G-mean</span>
+                        </div>
+                    </button>
+
+                    <button onclick="selectModel('ngram')" id="model-ngram" class="model-btn rounded-xl p-5 text-left">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xl font-bold text-gray-800">N-gram</span>
+                            <span class="text-xs bg-orange-100 text-orange-700 px-2.5 py-1 rounded-lg font-mono border border-orange-200">36MB</span>
+                        </div>
+                        <p class="text-sm text-gray-500 mb-2">神经网络序列模型</p>
+                        <div class="flex items-center text-xs text-gray-500 space-x-3">
+                            <span class="flex items-center"><span class="w-1.5 h-1.5 bg-orange-500 rounded-full mr-1.5"></span>序列识别</span>
+                            <span class="text-orange-600 font-bold">96% 准确率</span>
+                        </div>
+                    </button>
+                </div>
+
+                <button onclick="selectModel('deep')" id="model-deep" class="w-full model-btn rounded-xl p-4 text-left flex items-center justify-between border-dashed border-2 border-gray-300">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-lg font-bold text-gray-800">🔍 深度综合检测</span>
+                        <span class="text-sm text-gray-500">三模型融合投票 + 网页抓取分析</span>
+                    </div>
+                    <span class="text-xs bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-1.5 rounded-full font-bold shadow-lg shadow-purple-500/25">推荐</span>
+                </button>
+            </div>
+
+            <div class="glass rounded-2xl p-8 relative overflow-hidden hover-lift">
+                <div id="scanLine" class="scan-line hidden"></div>
+
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold flex items-center text-gray-800">
+                        <span class="w-1 h-8 bg-gradient-to-b from-blue-500 to-blue-600 rounded mr-3"></span>
+                        URL 安全检测
+                        <span id="activeModelBadge" class="ml-3 text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full border border-blue-200 font-medium">SVM 模式</span>
+                    </h2>
+
+                    <div class="flex items-center space-x-3 glass px-4 py-2.5 rounded-xl border border-gray-200/50">
+                        <span class="text-sm text-gray-500">检测强度:</span>
+                        <span class="text-xs text-red-500 font-bold">严格</span>
+                        <input type="range" id="thresholdSlider" min="30" max="90" value="70" class="w-32" oninput="updateThreshold(this.value)">
+                        <span class="text-xs text-green-500 font-bold">宽松</span>
+                        <span id="thresholdValue" class="text-sm mono text-blue-600 font-bold w-12 text-center bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">70%</span>
+                    </div>
+                </div>
+
+                <div class="relative">
+                    <input 
+                        type="url" 
+                        id="urlInput" 
+                        placeholder="输入可疑网址，例如: https://portal.gdust.edu.cn 或 https://192.168.1.1.bank.com"
+                        class="w-full input-light rounded-xl px-6 py-4 pr-40 text-lg placeholder-gray-400 text-gray-700 mono"
+                    >
+                    <button 
+                        onclick="startDetection()" 
+                        id="detectBtn"
+                        class="absolute right-2 top-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white px-6 py-2.5 rounded-lg font-medium transition flex items-center space-x-2 shadow-lg shadow-blue-500/25"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        <span id="detectBtnText">开始检测</span>
+                    </button>
+                </div>
+
+                <div class="flex gap-3 mt-4 text-sm flex-wrap">
+                    <span class="text-gray-500">快速测试:</span>
+                    <button onclick="quickTest('https://portal.gdust.edu.cn')" class="px-3 py-1.5 bg-green-50 text-green-600 rounded-full hover:bg-green-100 transition border border-green-200 text-xs font-medium">教育网(应通过)</button>
+                    <button onclick="quickTest('https://paypa1.com/login')" class="px-3 py-1.5 bg-red-50 text-red-600 rounded-full hover:bg-red-100 transition border border-red-200 text-xs font-medium">仿冒PayPal(应拦截)</button>
+                    <button onclick="quickTest('https://192.168.1.1.bank.com')" class="px-3 py-1.5 bg-orange-50 text-orange-600 rounded-full hover:bg-orange-100 transition border border-orange-200 text-xs font-medium">IP混淆(应拦截)</button>
+                </div>
+            </div>
+
+            <div id="resultPanel" class="hidden space-y-6">
+                <div class="glass rounded-2xl p-8 border-l-4" id="riskBanner">
+                    <div class="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3 mb-3 flex-wrap gap-2">
+                                <h3 class="text-lg font-medium text-gray-500">综合风险评估</h3>
+                                <span id="whitelistBadge" class="edu-badge hidden">教育域名保护</span>
+                                <span id="ipObfuscateBadge" class="hidden px-2 py-1 rounded text-xs font-bold bg-red-100 text-red-700 border border-red-300 animate-pulse">IP混淆攻击</span>
+                                <span id="modelUsedBadge" class="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-lg border border-blue-200 font-mono">SVM</span>
+                            </div>
+                            <div class="flex items-baseline space-x-4 flex-wrap mb-2">
+                                <span id="riskLevel" class="text-5xl font-black tracking-tight text-gray-800">等待检测</span>
+                                <div class="flex flex-col">
+                                    <span id="riskScorePercent" class="text-4xl mono text-gray-600 font-bold">--%</span>
+                                    <span class="text-xs text-gray-400">风险指数</span>
+                                </div>
+                            </div>
+                            <p id="riskDesc" class="text-gray-500 mt-2 text-lg">请输入URL开始检测</p>
+                            <div id="attackVector" class="hidden mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                                <p class="text-red-600 text-sm font-mono font-bold flex items-center">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                    <span id="attackVectorText"></span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div id="model-detail-panel" class="glass bg-white/50 rounded-xl p-5 border border-gray-200/50 min-w-[300px]">
+                            <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">模型检测详情</h4>
+                            <div class="space-y-4">
+                                <div id="row-svm">
+                                    <div class="flex items-center justify-between mb-1.5">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                                            <span class="text-sm text-gray-700 font-medium">SVM</span>
+                                        </div>
+                                        <span id="detail-svm" class="text-sm mono font-bold text-gray-500">--%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div id="bar-svm" class="feature-bar bg-gradient-to-r from-blue-500 to-blue-400 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                                    </div>
+                                </div>
+
+                                <div id="row-gte">
+                                    <div class="flex items-center justify-between mb-1.5">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+                                            <span class="text-sm text-gray-700 font-medium">GTE</span>
+                                        </div>
+                                        <span id="detail-gte" class="text-sm mono font-bold text-gray-500">--%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div id="bar-gte" class="feature-bar bg-gradient-to-r from-purple-500 to-purple-400 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                                    </div>
+                                </div>
+
+                                <div id="row-ngram">
+                                    <div class="flex items-center justify-between mb-1.5">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
+                                            <span class="text-sm text-gray-700 font-medium">N-gram</span>
+                                        </div>
+                                        <span id="detail-ngram" class="text-sm mono font-bold text-gray-500">--%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2">
+                                        <div id="bar-ngram" class="feature-bar bg-gradient-to-r from-orange-500 to-orange-400 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass rounded-2xl p-6 border border-gray-200/50 hover-lift">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center text-amber-600">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                        </svg>
+                        检测到的风险特征
+                        <span class="ml-2 text-xs text-gray-400 font-normal">(置信度/贡献度)</span>
+                    </h3>
+                    <div class="space-y-2 max-h-96 overflow-y-auto pr-2" id="featureList">
+                        <div class="text-gray-400 text-center py-8 flex flex-col items-center">
+                            <svg class="w-12 h-12 mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <span>等待检测数据...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="engine-card glass rounded-2xl p-6 border border-blue-200 bg-gradient-to-br from-blue-50/50 to-transparent">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                                <h3 class="font-semibold text-blue-600">深度语义分析</h3>
+                            </div>
+                            <span id="gteScore" class="text-2xl font-bold mono text-gray-600">0.0%</span>
+                        </div>
+                        <p class="text-sm text-gray-500">基于GTE模型的语义向量空间距离计算</p>
+                    </div>
+
+                    <div class="engine-card glass rounded-2xl p-6 border border-purple-200 bg-gradient-to-br from-purple-50/50 to-transparent">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-2 h-2 bg-purple-500 rounded-full"></div>
+                                <h3 class="font-semibold text-purple-600">特征规则匹配</h3>
+                            </div>
+                            <span id="svmScore" class="text-2xl font-bold mono text-gray-600">0.0%</span>
+                        </div>
+                        <p class="text-sm text-gray-500">基于SVM的15维特征工程规则检测</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass rounded-2xl p-6 hover-lift">
+                <h3 class="text-lg font-semibold mb-4 text-gray-700 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    检测历史
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-600">
+                        <thead class="text-xs text-gray-500 uppercase bg-gray-50/80">
+                            <tr>
+                                <th class="px-4 py-3 rounded-l-lg">URL</th>
+                                <th class="px-4 py-3">检测模型</th>
+                                <th class="px-4 py-3">风险评分</th>
+                                <th class="px-4 py-3">主要威胁特征</th>
+                                <th class="px-4 py-3 rounded-r-lg">判定结果</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyList" class="divide-y divide-gray-100">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 模块 2: 漏洞检测 -->
+        <div id="module-vulnerability" class="module max-w-6xl mx-auto space-y-6">
+            <div class="glass rounded-2xl p-2">
+                <div class="flex space-x-1">
+                    <button onclick="switchVulnType('source_code')" id="vuln-tab-source_code" class="tab-btn active flex-1 py-3 px-4 rounded-lg text-sm font-medium text-gray-700 flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-50 to-pink-50">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                        <span>源码检测</span>
+                    </button>
+                    <button onclick="switchVulnType('folder_scan')" id="vuln-tab-folder_scan" class="tab-btn flex-1 py-3 px-4 rounded-lg text-sm font-medium text-gray-700 flex items-center justify-center space-x-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                        <span>文件夹扫描</span>
+                    </button>
+                    <button onclick="switchVulnType('multi_file')" id="vuln-tab-multi_file" class="tab-btn flex-1 py-3 px-4 rounded-lg text-sm font-medium text-gray-700 flex items-center justify-center space-x-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <span>多文件上传</span>
+                    </button>
+                </div>
+            </div>
+
+
+            <div id="vuln-panel-source_code" class="vuln-subpanel">
+                <div class="glass rounded-2xl p-6 hover-lift">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                        <svg class="w-4 h-4 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                        </svg>
+                        选择编程语言
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <button onclick="selectLanguage('c')" id="lang-c" class="lang-btn active rounded-xl p-4 text-left">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-lg font-bold text-gray-800">C</span>
+                                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-mono">.c</span>
+                            </div>
+                            <p class="text-xs text-gray-500">C语言代码检测</p>
+                        </button>
+                        <button onclick="selectLanguage('cpp')" id="lang-cpp" class="lang-btn rounded-xl p-4 text-left">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-lg font-bold text-gray-800">C++</span>
+                                <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded font-mono">.cpp</span>
+                            </div>
+                            <p class="text-xs text-gray-500">C++代码检测</p>
+                        </button>
+                        <button onclick="selectLanguage('java')" id="lang-java" class="lang-btn rounded-xl p-4 text-left">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-lg font-bold text-gray-800">Java</span>
+                                <span class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded font-mono">.java</span>
+                            </div>
+                            <p class="text-xs text-gray-500">Java代码检测</p>
+                        </button>
+                        <button onclick="selectLanguage('python')" id="lang-python" class="lang-btn rounded-xl p-4 text-left">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-lg font-bold text-gray-800">Python</span>
+                                <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-mono">.py</span>
+                            </div>
+                            <p class="text-xs text-gray-500">Python代码检测</p>
+                        </button>
+                        <button onclick="selectLanguage('javascript')" id="lang-javascript" class="lang-btn rounded-xl p-4 text-left">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-lg font-bold text-gray-800">JavaScript</span>
+                                <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded font-mono">.js</span>
+                            </div>
+                            <p class="text-xs text-gray-500">JS代码检测</p>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="glass rounded-2xl p-6 relative overflow-hidden hover-lift">
+                    <div id="vulnScanLine" class="scan-line hidden" style="background: linear-gradient(90deg, transparent, #8b5cf6, transparent);"></div>
+
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-gray-700 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            输入待检测代码
+                        </h3>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="loadVulnExample('buffer_overflow')" class="px-3 py-1.5 bg-red-50 text-red-600 rounded-full hover:bg-red-100 transition border border-red-200 text-xs font-medium">缓冲区溢出</button>
+                            <button onclick="loadVulnExample('sql_injection')" class="px-3 py-1.5 bg-orange-50 text-orange-600 rounded-full hover:bg-orange-100 transition border border-orange-200 text-xs font-medium">SQL注入</button>
+                            <button onclick="loadVulnExample('command_injection')" class="px-3 py-1.5 bg-purple-50 text-purple-600 rounded-full hover:bg-purple-100 transition border border-purple-200 text-xs font-medium">命令注入</button>
+                        </div>
+                    </div>
+
+                    <div class="relative flex rounded-xl overflow-hidden shadow-inner">
+                        <div class="line-numbers text-sm py-4 text-gray-500" id="lineNumbers" style="min-width: 50px;">
+                            1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10
+                        </div>
+                        <textarea 
+                            id="codeInput" 
+                            placeholder="在此粘贴或输入代码..."
+                            class="flex-1 code-editor px-4 py-4 text-sm min-h-[320px] resize-y"
+                            oninput="updateLineNumbers()"
+                            onscroll="syncScroll()"
+                            onpaste="setTimeout(updateLineNumbers, 100)"
+                        ></textarea>
+                    </div>
+
+                    <div class="mt-4 flex justify-between items-center">
+                        <div class="text-xs text-gray-500">
+                            <span id="codeStats">0 行 | 0 字符</span>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <label class="flex items-center space-x-2 text-sm text-gray-600 cursor-pointer">
+                                <input type="checkbox" id="autoExportReport" checked class="rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                                <span>自动导出报告</span>
+                            </label>
+                            <button 
+                                onclick="startVulnDetection()" 
+                                id="vulnDetectBtn"
+                                class="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white px-6 py-2.5 rounded-lg font-medium transition flex items-center space-x-2 shadow-lg shadow-purple-500/25"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                                <span id="vulnDetectBtnText">开始检测</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 文件夹扫描面板 -->
+            <div id="vuln-panel-folder_scan" class="vuln-subpanel hidden">
+                <div class="glass rounded-2xl p-6 hover-lift">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                        </svg>
+                        文件夹扫描
+                    </h3>
+                    <p class="text-sm text-gray-500 mb-4">选择一个代码文件夹，系统将自动扫描所有支持的语言代码文件（.c, .cpp, .java, .py, .js）并进行漏洞检测。</p>
+                    
+                    <div class="bg-gray-50 rounded-xl p-6 text-center border-2 border-dashed border-gray-300 hover:border-purple-400 transition cursor-pointer" 
+                         onclick="document.getElementById('folderInput').click()" 
+                         id="folderDropZone">
+                        <svg class="w-12 h-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                        <p class="text-gray-600 font-medium">点击选择文件夹</p>
+                        <p class="text-xs text-gray-400 mt-1">支持 .c, .cpp, .java, .py, .js 文件</p>
+                        <input type="file" id="folderInput" webkitdirectory multiple class="hidden" onchange="handleFolderSelect(event)">
+                    </div>
+                    
+                    <div id="folderFileList" class="mt-4 max-h-60 overflow-y-auto hidden">
+                        <div class="text-sm font-medium text-gray-700 mb-2">已选择文件：</div>
+                        <div id="folderFileListContent" class="space-y-1"></div>
+                    </div>
+                    
+                    <div class="mt-4 flex justify-end">
+                        <button onclick="startFolderScan()" id="folderScanBtn" disabled
+                            class="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium transition flex items-center space-x-2 shadow-lg shadow-purple-500/25">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                            </svg>
+                            <span id="folderScanBtnText">开始扫描</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 文件夹扫描结果 -->
+                <div id="folderScanResult" class="hidden space-y-4 mt-6">
+                    <div class="glass rounded-2xl p-6 border-l-4 border-purple-500">
+                        <h4 class="text-lg font-semibold text-gray-700 mb-4">文件夹扫描结果</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div class="bg-gray-50 rounded-lg p-3 text-center">
+                                <div class="text-xs text-gray-500">总文件数</div>
+                                <div id="folderTotalFiles" class="text-2xl font-bold text-gray-800">0</div>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3 text-center">
+                                <div class="text-xs text-gray-500">检测文件数</div>
+                                <div id="folderDetectedFiles" class="text-2xl font-bold text-gray-800">0</div>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3 text-center">
+                                <div class="text-xs text-gray-500">漏洞文件数</div>
+                                <div id="folderVulnFiles" class="text-2xl font-bold text-red-600">0</div>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3 text-center">
+                                <div class="text-xs text-gray-500">安全文件数</div>
+                                <div id="folderSafeFiles" class="text-2xl font-bold text-green-600">0</div>
+                            </div>
+                        </div>
+                        <div id="folderScanFileResults" class="space-y-3 max-h-96 overflow-y-auto"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 多文件上传面板 -->
+            <div id="vuln-panel-multi_file" class="vuln-subpanel hidden">
+                <div class="glass rounded-2xl p-6 hover-lift">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        多文件上传检测
+                    </h3>
+                    <p class="text-sm text-gray-500 mb-4">上传多个代码文件（支持不同语言），系统将逐个检测并汇总漏洞信息。</p>
+                    
+                    <div class="bg-gray-50 rounded-xl p-6 text-center border-2 border-dashed border-gray-300 hover:border-purple-400 transition cursor-pointer" 
+                         onclick="document.getElementById('multiFileInput').click()" 
+                         id="multiFileDropZone">
+                        <svg class="w-12 h-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                        <p class="text-gray-600 font-medium">点击选择多个文件</p>
+                        <p class="text-xs text-gray-400 mt-1">支持 .c, .cpp, .java, .py, .js 文件</p>
+                        <input type="file" id="multiFileInput" multiple class="hidden" onchange="handleMultiFileSelect(event)" accept=".c,.cpp,.java,.py,.js">
+                    </div>
+                    
+                    <div id="multiFileList" class="mt-4 max-h-60 overflow-y-auto hidden">
+                        <div class="text-sm font-medium text-gray-700 mb-2">已选择文件：</div>
+                        <div id="multiFileListContent" class="space-y-1"></div>
+                    </div>
+                    
+                    <div class="mt-4 flex justify-end">
+                        <button onclick="startMultiFileScan()" id="multiFileScanBtn" disabled
+                            class="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-medium transition flex items-center space-x-2 shadow-lg shadow-purple-500/25">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <span id="multiFileScanBtnText">开始检测</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 多文件扫描结果 -->
+                <div id="multiFileResult" class="hidden space-y-4 mt-6">
+                    <div class="glass rounded-2xl p-6 border-l-4 border-purple-500">
+                        <h4 class="text-lg font-semibold text-gray-700 mb-4">多文件检测结果</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div class="bg-gray-50 rounded-lg p-3 text-center">
+                                <div class="text-xs text-gray-500">上传文件数</div>
+                                <div id="multiTotalFiles" class="text-2xl font-bold text-gray-800">0</div>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3 text-center">
+                                <div class="text-xs text-gray-500">检测文件数</div>
+                                <div id="multiDetectedFiles" class="text-2xl font-bold text-gray-800">0</div>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3 text-center">
+                                <div class="text-xs text-gray-500">漏洞文件数</div>
+                                <div id="multiVulnFiles" class="text-2xl font-bold text-red-600">0</div>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3 text-center">
+                                <div class="text-xs text-gray-500">安全文件数</div>
+                                <div id="multiSafeFiles" class="text-2xl font-bold text-green-600">0</div>
+                            </div>
+                        </div>
+                        <div id="multiFileResults" class="space-y-3 max-h-96 overflow-y-auto"></div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div id="vulnResultPanel" class="hidden space-y-6">
+                <div class="glass rounded-2xl p-6 border-l-4" id="vulnRiskBanner">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-500 mb-2">漏洞风险评估</h3>
+                            <div class="flex items-baseline space-x-4">
+                                <span id="vulnRiskLevel" class="text-4xl font-black tracking-tight text-gray-800">等待检测</span>
+                                <span id="vulnCount" class="text-2xl mono text-gray-600 font-bold">-- 个漏洞</span>
+                            </div>
+                            <p id="vulnRiskDesc" class="text-gray-500 mt-2">请输入代码开始检测</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs text-gray-500 mb-1">检测语言</div>
+                            <span id="detectedLang" class="text-lg font-bold text-purple-600">C</span>
+                            <div class="mt-2">
+                                <div class="text-xs text-gray-500 mb-1">置信度</div>
+                                <span id="vulnConfidence" class="text-xl font-bold text-purple-600">--%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass rounded-2xl p-6 hover-lift">
+                    <h4 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">AI检测概率分布</h4>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <span class="text-sm text-gray-700">存在漏洞概率</span>
+                                <span id="vulnProb" class="text-sm mono font-bold text-red-600">--%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div id="bar-vuln" class="progress-bar h-2.5 rounded-full" style="width: 0%; background: linear-gradient(90deg, #ef4444, #dc2626);"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <span class="text-sm text-gray-700">安全代码概率</span>
+                                <span id="safeProb" class="text-sm mono font-bold text-green-600">--%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div id="bar-safe" class="progress-bar h-2.5 rounded-full" style="width: 0%; background: linear-gradient(90deg, #10b981, #059669);"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass rounded-2xl p-6 hover-lift">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center text-purple-600">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                        检测到的漏洞
+                    </h3>
+                    <div id="vulnList" class="space-y-3"></div>
+                </div>
+
+                <div id="reportSection" class="glass rounded-2xl p-6 hover-lift hidden">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center text-gray-700">
+                        <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        检测报告
+                    </h3>
+                    <div class="flex items-center space-x-4">
+                        <div class="flex-1 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <div class="text-sm text-gray-600 mb-1">报告路径</div>
+                            <code id="reportPath" class="text-xs text-purple-600 mono break-all">--</code>
+                        </div>
+                        <button onclick="downloadReport()" class="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white px-5 py-2.5 rounded-lg font-medium transition flex items-center space-x-2 shadow-lg shadow-blue-500/25">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                            </svg>
+                            <span>下载报告</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- 模块 3: 任务列表 -->
+        <div id="module-tasks" class="module max-w-6xl mx-auto space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="glass rounded-xl p-5 hover-lift">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-gray-500">总任务数</div>
+                            <div id="totalTasks" class="text-3xl font-bold text-gray-800 mt-1">0</div>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-xl p-5 hover-lift">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-gray-500">待处理</div>
+                            <div id="pendingTasksCount" class="text-3xl font-bold text-amber-600 mt-1">0</div>
+                        </div>
+                        <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-xl p-5 hover-lift">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-gray-500">检测中</div>
+                            <div id="processingTasksCount" class="text-3xl font-bold text-blue-600 mt-1">0</div>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6 text-blue-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass rounded-xl p-5 hover-lift">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-sm text-gray-500">已完成</div>
+                            <div id="completedTasksCount" class="text-3xl font-bold text-green-600 mt-1">0</div>
+                        </div>
+                        <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm text-gray-600">状态筛选:</span>
+                    <select id="taskStatusFilter" onchange="filterTasks()" class="input-light rounded-lg px-3 py-2 text-sm">
+                        <option value="all">全部</option>
+                        <option value="pending">待处理</option>
+                        <option value="processing">检测中</option>
+                        <option value="completed">已完成</option>
+                        <option value="failed">失败</option>
+                    </select>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm text-gray-600">类型筛选:</span>
+                    <select id="taskTypeFilter" onchange="filterTasks()" class="input-light rounded-lg px-3 py-2 text-sm">
+                        <option value="all">全部</option>
+                        <option value="phishing">钓鱼检测</option>
+                        <option value="source_code">源码检测</option>
+                        <option value="batch">批量检测</option>
+                    </select>
+                </div>
+                <button onclick="refreshTasks()" class="text-gray-600 hover:text-gray-900 transition text-sm font-medium glass px-4 py-2 rounded-lg hover:bg-white/80 flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <span>刷新</span>
+                </button>
+            </div>
+
+            <div class="glass rounded-2xl p-6 hover-lift">
+                <h3 class="text-lg font-semibold mb-4 text-gray-700 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                    </svg>
+                    任务列表
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-gray-500 uppercase bg-gray-50/80">
+                            <tr>
+                                <th class="px-4 py-3 rounded-l-lg">任务ID</th>
+                                <th class="px-4 py-3">类型</th>
+                                <th class="px-4 py-3">状态</th>
+                                <th class="px-4 py-3">结果</th>
+                                <th class="px-4 py-3">创建时间</th>
+                                <th class="px-4 py-3 rounded-r-lg">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="taskList" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+                <div id="emptyTaskList" class="text-center py-12 text-gray-400">
+                    <svg class="w-16 h-16 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                    <p>暂无任务</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="whitelistPanel" class="fixed inset-y-0 right-0 w-96 glass border-l border-gray-200/50 transform translate-x-full transition-transform duration-300 z-50 p-6 overflow-y-auto" style="background: rgba(255,255,255,0.95);">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-semibold text-gray-800">白名单管理</h3>
+            <button onclick="toggleWhitelistPanel()" class="text-gray-400 hover:text-gray-600 transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <div class="space-y-4 mb-6">
+            <div class="bg-green-50 rounded-xl p-4 border border-green-200">
+                <h4 class="font-medium text-green-700 mb-2 flex items-center">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    教育网自动保护
+                </h4>
+                <p class="text-sm text-gray-600 mb-3">自动匹配 *.edu.cn 及子域名</p>
+                <code class="block bg-white rounded-lg px-3 py-2 text-xs text-blue-600 mono mb-3 border border-gray-200">.*\.edu\.cn$</code>
+                <div class="flex items-center space-x-2 text-sm text-gray-600">
+                    <input type="checkbox" id="eduForceReduce" checked class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <label for="eduForceReduce">启用强制风险降级 (×0.3)</label>
+                </div>
+            </div>
+
+            <div class="bg-red-50 rounded-xl p-4 border border-red-200">
+                <h4 class="font-medium text-red-700 mb-2">IP混淆强制拦截</h4>
+                <p class="text-xs text-gray-600 mb-2">以下模式将无视阈值直接标记高危:</p>
+                <ul class="text-xs text-gray-500 space-y-1 mono">
+                    <li>• xxx.xxx.xxx.xxx.domain.com</li>
+                    <li>• 0xXX.0xXX.0xXX.0xXX.*</li>
+                    <li>• IP+品牌词组合</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="space-y-3">
+            <h4 class="font-medium text-gray-700">自定义白名单</h4>
+            <div class="flex space-x-2">
+                <input type="text" id="newWhitelist" placeholder="example.com" class="flex-1 input-light rounded-lg px-3 py-2.5 text-sm">
+                <button onclick="addWhitelist()" class="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-lg shadow-blue-500/25">添加</button>
+            </div>
+            <ul id="whitelistItems" class="space-y-2 text-sm max-h-64 overflow-y-auto">
+                <li class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5 border border-gray-200">
+                    <span class="mono text-gray-700">gdust.edu.cn</span>
+                    <span class="text-xs text-green-600 font-medium">系统</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="taskDetailModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden items-center justify-center z-50">
+        <div class="glass rounded-2xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto" style="background: rgba(255,255,255,0.98);">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">任务详情</h3>
+                <button onclick="closeTaskModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div id="taskDetailContent" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 全局配置 ====================
+        const API_BASE = ''; // 空字符串表示同域，如需跨域改为 'http://127.0.0.1:8080'
+        
+        // API 调用工具
+        async function apiCall(endpoint, method = 'GET', body = null, timeout = 300000) {  // 默认5分钟超时
+            const options = {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include'
+            };
+            if (body) options.body = JSON.stringify(body);
+            
+            // 使用AbortController设置超时
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+            options.signal = controller.signal;
+            
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || error.error || `HTTP ${response.status}`);
+                }
+                return response.json();
+            } catch (error) {
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError') {
+                    throw new Error('请求超时：模型推理时间过长或服务器未响应，请检查后端日志或缩短代码');
+                }
+                throw error;
+            }
+        }
+
+        // ==================== 全局状态 ====================
+        let currentModel = 'svm';
+        let currentThreshold = 70;
+        let isEduDomain = false;
+        let isIPObfuscate = false;
+        let currentLanguage = 'python';  // 默认语言改为Python
+        let currentVulnType = 'source_code';
+        let tasks = [];
+        let taskIdCounter = 1;
+
+        // ==================== 模块切换 ====================
+        function switchModule(moduleName) {
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            document.getElementById('nav-' + moduleName).classList.add('active');
+            document.querySelectorAll('.module').forEach(module => module.classList.remove('active'));
+            document.getElementById('module-' + moduleName).classList.add('active');
+            if (moduleName === 'tasks') refreshTasks();
+        }
+
+        // ==================== 钓鱼检测功能 ====================
+        function selectModel(model) {
+            currentModel = model;
+            document.querySelectorAll('.model-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('model-' + model).classList.add('active');
+            const modelNames = { 'svm': 'SVM 传统模型', 'gte': 'GTE 深度学习', 'ngram': 'N-gram 神经网络', 'deep': '深度综合检测' };
+            document.getElementById('currentModelDisplay').textContent = modelNames[model] + ' 就绪';
+            document.getElementById('activeModelBadge').textContent = modelNames[model];
+            document.getElementById('modelUsedBadge').textContent = model.toUpperCase();
+        }
+
+        function quickTest(url) {
+            document.getElementById('urlInput').value = url;
+            startDetection();
+        }
+
+        function updateThreshold(val) {
+            currentThreshold = val;
+            document.getElementById('thresholdValue').textContent = val + '%';
+        }
+
+        async function startDetection() {
+            const url = document.getElementById('urlInput').value.trim();
+            if (!url) return alert('请输入URL');
+
+            alert('钓鱼检测功能已停用，该模块正在升级中');
+            return;
+        }
+
+        function showDeepResults(url, result) {
+            const threshold = currentThreshold / 100;
+            const finalPercent = (result.final * 100).toFixed(1);
+            const layers = result.layers || {};
+            
+            // 决定风险等级
+            let riskClass, riskText, riskDesc;
+            if (result.risk_level === '极高风险') { riskClass = 'risk-critical'; riskText = '极高风险'; riskDesc = '确认钓鱼攻击特征，立即拦截！'; }
+            else if (result.risk_level === '高风险') { riskClass = 'risk-high'; riskText = '高风险'; riskDesc = '多层检测确认可疑，建议拦截'; }
+            else if (result.risk_level === '中风险') { riskClass = 'risk-medium'; riskText = '中风险'; riskDesc = '存在可疑特征，进入人工审核'; }
+            else if (result.risk_level === '低风险') { riskClass = 'risk-low'; riskText = '低风险'; riskDesc = '轻微异常或新域名'; }
+            else { riskClass = 'risk-safe'; riskText = '安全'; riskDesc = '未检测到钓鱼特征'; }
+
+            // 更新横幅
+            const banner = document.getElementById('riskBanner');
+            if (banner) banner.className = `glass rounded-2xl p-8 border-l-4 ${riskClass} mb-6`;
+            const riskLevelEl = document.getElementById('riskLevel');
+            if (riskLevelEl) {
+                riskLevelEl.textContent = riskText;
+                riskLevelEl.className = `text-5xl font-black tracking-tight ${riskClass.replace('risk-', 'text-')}`;
+            }
+            const scoreEl = document.getElementById('riskScorePercent');
+            if (scoreEl) scoreEl.textContent = finalPercent + '%';
+            const descEl = document.getElementById('riskDesc');
+            if (descEl) descEl.textContent = riskDesc;
+            const badgeEl = document.getElementById('modelUsedBadge');
+            if (badgeEl) badgeEl.textContent = 'DEEP';
+            
+            // 隐藏教育域名和IP混淆标记
+            const wbEl = document.getElementById('whitelistBadge');
+            if (wbEl) wbEl.classList.add('hidden');
+            const ipEl = document.getElementById('ipObfuscateBadge');
+            if (ipEl) ipEl.classList.add('hidden');
+            const avEl = document.getElementById('attackVector');
+            if (avEl) avEl.classList.add('hidden');
+            
+            // 隐藏传统三模型详情，显示四层架构
+            const svmRow = document.getElementById('row-svm');
+            const gteRow = document.getElementById('row-gte');
+            const ngramRow = document.getElementById('row-ngram');
+            if (svmRow) svmRow.classList.add('hidden');
+            if (gteRow) gteRow.classList.add('hidden');
+            if (ngramRow) ngramRow.classList.add('hidden');
+            
+            // 构建四层检测详情HTML
+            const detailContainer = document.getElementById('model-detail-panel');
+            if (detailContainer) {
+                let layersHtml = '<h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">四层检测详情</h4><div class="space-y-3">';
+                
+                const layerConfigs = [
+                    { key: 'layer1', name: 'L1: 极速预筛', color: 'blue', desc: 'URL字符串分析' },
+                    { key: 'layer2', name: 'L2: 协议探测', color: 'purple', desc: 'HEAD请求+证书' },
+                    { key: 'layer3', name: 'L3: 语义分析', color: 'green', desc: '网页爬取+GTE' },
+                    { key: 'layer4', name: 'L4: 融合决策', color: 'orange', desc: '动态权重融合' }
+                ];
+                
+                layerConfigs.forEach(cfg => {
+                    if (layers[cfg.key]) {
+                        const layer = layers[cfg.key];
+                        const score = layer.score !== undefined ? (layer.score * 100).toFixed(1) : '--';
+                        const decision = layer.decision || '';
+                        const time = layer.time_ms !== undefined ? `${layer.time_ms.toFixed(1)}ms` : '';
+                        
+                        let decisionBadge = '';
+                        if (decision === 'block') decisionBadge = '<span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded">拦截</span>';
+                        else if (decision === 'pass') decisionBadge = '<span class="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded">放行</span>';
+                        else if (decision === 'review') decisionBadge = '<span class="text-xs bg-yellow-100 text-yellow-600 px-2 py-0.5 rounded">审核</span>';
+                        else if (decision === 'observe') decisionBadge = '<span class="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded">观察</span>';
+                        else if (decision === 'continue') decisionBadge = '<span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">继续</span>';
+                        
+                        layersHtml += `
+                            <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <div>
+                                        <span class="text-sm font-bold text-gray-700">${cfg.name}</span>
+                                        <span class="text-xs text-gray-400 ml-2">${cfg.desc}</span>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        ${decisionBadge}
+                                        <span class="text-sm mono font-bold text-${cfg.color}-600">${score}%</span>
+                                    </div>
+                                </div>
+                                ${time ? `<div class="text-xs text-gray-400">耗时: ${time}</div>` : ''}
+                            </div>
+                        `;
+                    }
+                });
+                
+                // 添加总耗时
+                if (result.total_time_ms) {
+                    layersHtml += `
+                        <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-3 border border-blue-200 mt-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-bold text-gray-700">📊 总耗时</span>
+                                <span class="text-sm mono font-bold text-blue-600">${result.total_time_ms.toFixed(1)}ms</span>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                layersHtml += '</div>';
+                detailContainer.innerHTML = layersHtml;
+            }
+            
+            // 渲染特征列表
+            renderFeatures(result.features || []);
+            addToHistory(url, result.final, result.features || []);
+        }
+
+        function showResults(url, result, features) {
+            const threshold = currentThreshold / 100;
+            const finalPercent = (result.final * 100).toFixed(1);
+            let riskClass, riskText, riskDesc;
+
+            if (result.final >= 0.95) { riskClass = 'risk-critical'; riskText = '极高风险'; riskDesc = '确认钓鱼攻击特征，立即拦截！'; }
+            else if (result.final >= 0.80) { riskClass = 'risk-high'; riskText = '高风险'; riskDesc = isIPObfuscate ? '检测到IP混淆攻击手法' : '多重钓鱼特征匹配'; }
+            else if (result.final >= threshold) { riskClass = 'risk-medium'; riskText = '中风险'; riskDesc = '存在可疑特征，请谨慎访问'; }
+            else if (result.final >= 0.3) { riskClass = 'risk-low'; riskText = '低风险'; riskDesc = '轻微异常或新域名'; }
+            else { riskClass = 'risk-safe'; riskText = '安全'; riskDesc = '未检测到钓鱼特征'; }
+
+            const banner = document.getElementById('riskBanner');
+            if (banner) banner.className = `glass rounded-2xl p-8 border-l-4 ${riskClass} mb-6`;
+
+            const riskLevelEl = document.getElementById('riskLevel');
+            if (riskLevelEl) {
+                riskLevelEl.textContent = riskText;
+                riskLevelEl.className = `text-5xl font-black tracking-tight ${riskClass.replace('risk-', 'text-')}`;
+            }
+            const scoreEl = document.getElementById('riskScorePercent');
+            if (scoreEl) scoreEl.textContent = finalPercent + '%';
+            const descEl = document.getElementById('riskDesc');
+            if (descEl) descEl.textContent = riskDesc;
+
+            const eduBadge = document.getElementById('whitelistBadge');
+            if (eduBadge) eduBadge.classList.toggle('hidden', !(isEduDomain && !isIPObfuscate));
+
+            const ipBadge = document.getElementById('ipObfuscateBadge');
+            const attackVector = document.getElementById('attackVector');
+            if (isIPObfuscate) {
+                if (ipBadge) ipBadge.classList.remove('hidden');
+                if (attackVector) attackVector.classList.remove('hidden');
+                const avText = document.getElementById('attackVectorText');
+                if (avText) avText.textContent = '攻击向量: IP混淆/十六进制编码';
+            } else {
+                if (ipBadge) ipBadge.classList.add('hidden');
+                if (attackVector) attackVector.classList.add('hidden');
+            }
+
+            // 根据后端返回的模型结果显示对应进度条
+            const svmRow = document.getElementById('row-svm');
+            const gteRow = document.getElementById('row-gte');
+            const ngramRow = document.getElementById('row-ngram');
+            
+            // 先全部隐藏（添加null检查）
+            if (svmRow) svmRow.classList.add('hidden');
+            if (gteRow) gteRow.classList.add('hidden');
+            if (ngramRow) ngramRow.classList.add('hidden');
+            
+            // 只显示使用的模型
+            if (result.models && result.models.svm) {
+                if (svmRow) svmRow.classList.remove('hidden');
+                const svmScore = result.models.svm.score;
+                document.getElementById('detail-svm').textContent = (svmScore * 100).toFixed(1) + '%';
+                document.getElementById('bar-svm').style.width = (svmScore * 100) + '%';
+                document.getElementById('detail-svm').className = 'text-sm mono font-bold ' + (svmScore > threshold ? 'text-red-600' : 'text-blue-600');
+                document.getElementById('svmScore').textContent = (svmScore * 100).toFixed(1) + '%';
+                document.getElementById('svmScore').className = 'text-2xl font-bold mono ' + (svmScore > threshold ? 'text-red-600' : 'text-gray-600');
+            }
+            
+            if (result.models && result.models.gte) {
+                if (gteRow) gteRow.classList.remove('hidden');
+                const gteScore = result.models.gte.score;
+                document.getElementById('detail-gte').textContent = (gteScore * 100).toFixed(1) + '%';
+                document.getElementById('bar-gte').style.width = (gteScore * 100) + '%';
+                document.getElementById('detail-gte').className = 'text-sm mono font-bold ' + (gteScore > threshold ? 'text-red-600' : 'text-purple-600');
+                document.getElementById('gteScore').textContent = (gteScore * 100).toFixed(1) + '%';
+                document.getElementById('gteScore').className = 'text-2xl font-bold mono ' + (gteScore > threshold ? 'text-red-600' : 'text-gray-600');
+            }
+            
+            if (result.models && result.models.ngram) {
+                if (ngramRow) ngramRow.classList.remove('hidden');
+                const ngramScore = result.models.ngram.score;
+                document.getElementById('detail-ngram').textContent = (ngramScore * 100).toFixed(1) + '%';
+                document.getElementById('bar-ngram').style.width = (ngramScore * 100) + '%';
+                document.getElementById('detail-ngram').className = 'text-sm mono font-bold ' + (ngramScore > threshold ? 'text-red-600' : 'text-orange-600');
+            }
+
+            // 兼容旧数据格式
+            if (result.svm !== undefined && (!result.models || !result.models.svm)) {
+                if (svmRow) svmRow.classList.remove('hidden');
+                document.getElementById('detail-svm').textContent = (result.svm * 100).toFixed(1) + '%';
+                document.getElementById('bar-svm').style.width = (result.svm * 100) + '%';
+                document.getElementById('detail-svm').className = 'text-sm mono font-bold ' + (result.svm > threshold ? 'text-red-600' : 'text-blue-600');
+                document.getElementById('svmScore').textContent = (result.svm * 100).toFixed(1) + '%';
+                document.getElementById('svmScore').className = 'text-2xl font-bold mono ' + (result.svm > threshold ? 'text-red-600' : 'text-gray-600');
+            }
+            if (result.gte !== undefined && (!result.models || !result.models.gte)) {
+                if (gteRow) gteRow.classList.remove('hidden');
+                document.getElementById('detail-gte').textContent = (result.gte * 100).toFixed(1) + '%';
+                document.getElementById('bar-gte').style.width = (result.gte * 100) + '%';
+                document.getElementById('detail-gte').className = 'text-sm mono font-bold ' + (result.gte > threshold ? 'text-red-600' : 'text-purple-600');
+                document.getElementById('gteScore').textContent = (result.gte * 100).toFixed(1) + '%';
+                document.getElementById('gteScore').className = 'text-2xl font-bold mono ' + (result.gte > threshold ? 'text-red-600' : 'text-gray-600');
+            }
+            if (result.ngram !== undefined && (!result.models || !result.models.ngram)) {
+                if (ngramRow) ngramRow.classList.remove('hidden');
+                document.getElementById('detail-ngram').textContent = (result.ngram * 100).toFixed(1) + '%';
+                document.getElementById('bar-ngram').style.width = (result.ngram * 100) + '%';
+                document.getElementById('detail-ngram').className = 'text-sm mono font-bold ' + (result.ngram > threshold ? 'text-red-600' : 'text-orange-600');
+            }
+
+            renderFeatures(features || []);
+            addToHistory(url, result.final, features || []);
+        }
+
+        function renderFeatures(features) {
+            const container = document.getElementById('featureList');
+            container.innerHTML = '';
+            if (features.length === 0) {
+                container.innerHTML = '<div class="text-gray-400 text-center py-4">无特征数据</div>';
+                return;
+            }
+            features.forEach((f, idx) => {
+                const isRisk = (f.score || f.importance || 0) > 0;
+                const score = f.score || f.importance || 0;
+                const colorClass = isRisk ? 'bg-gradient-to-r from-red-500 to-red-400' : 'bg-gradient-to-r from-green-500 to-green-400';
+                const width = Math.min(Math.abs(score) * 100, 100);
+                
+                const div = document.createElement('div');
+                div.className = `flex items-center space-x-4 p-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-all duration-300 animate-fade-in`;
+                div.style.animationDelay = (idx * 0.05) + 's';
+                div.innerHTML = `
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-sm text-gray-700 font-medium truncate">${f.name || f.feature || '未知特征'}</span>
+                            <div class="flex items-center space-x-2 ml-2">
+                                <span class="text-xs font-mono font-bold ${isRisk ? 'text-red-600' : 'text-green-600'}">${score > 0 ? '+' : ''}${(score * 100).toFixed(0)}%</span>
+                            </div>
+                        </div>
+                        <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div class="${colorClass} h-full rounded-full transition-all duration-700 ease-out" style="width: ${width}%"></div>
+                        </div>
+                        ${f.description ? `<p class="text-xs text-gray-500 mt-1">${f.description}</p>` : ''}
+                    </div>
+                    <div class="text-lg flex-shrink-0">${isRisk ? '⚠️' : '✓'}</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function addToHistory(url, score, features) {
+            const tbody = document.getElementById('historyList');
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50/50 transition animate-fade-in';
+            const mainThreat = features.find(f => (f.score || 0) > 0.5)?.name || '无威胁';
+            const scorePercent = (score * 100).toFixed(1);
+            let resultHtml = score >= 0.8 ? '<span class="px-2.5 py-1 bg-red-100 text-red-700 rounded-lg text-xs border border-red-200 font-bold">拦截</span>' :
+                            score >= currentThreshold/100 ? '<span class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs border border-amber-200 font-bold">警告</span>' :
+                            '<span class="px-2.5 py-1 bg-green-100 text-green-700 rounded-lg text-xs border border-green-200 font-bold">通过</span>';
+            
+            row.innerHTML = `
+                <td class="px-4 py-3 mono truncate max-w-xs text-gray-700" title="${url}">${url.substring(0, 50)}${url.length > 50 ? '...' : ''}</td>
+                <td class="px-4 py-3"><span class="px-2.5 py-1 rounded-lg text-xs bg-gray-100 text-gray-700 border border-gray-200">${currentModel.toUpperCase()}</span></td>
+                <td class="px-4 py-3 font-bold ${score > 0.8 ? 'text-red-600' : score > 0.5 ? 'text-amber-600' : 'text-green-600'}">${scorePercent}%</td>
+                <td class="px-4 py-3 text-xs text-gray-500 truncate max-w-xs">${mainThreat}</td>
+                <td class="px-4 py-3">${resultHtml}</td>
+            `;
+            tbody.insertBefore(row, tbody.firstChild);
+            if (tbody.children.length > 10) tbody.removeChild(tbody.lastChild);
+        }
+
+        function toggleWhitelistPanel() {
+            document.getElementById('whitelistPanel').classList.toggle('translate-x-full');
+        }
+
+        function addWhitelist() {
+            const input = document.getElementById('newWhitelist');
+            const domain = input.value.trim();
+            if (!domain) return;
+            const list = document.getElementById('whitelistItems');
+            const li = document.createElement('li');
+            li.className = 'flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5 border border-gray-200 animate-fade-in';
+            li.innerHTML = `<span class="mono text-gray-700">${domain}</span><button onclick="this.parentElement.remove()" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 hover:bg-red-50 rounded">删除</button>`;
+            list.appendChild(li);
+            input.value = '';
+        }
+
+        // ==================== 漏洞检测功能 ====================
+        function switchVulnType(type) {
+            currentVulnType = type;
+            // 只切换漏洞检测模块的子标签页
+            document.querySelectorAll('#module-vulnerability .tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('vuln-tab-' + type).classList.add('active');
+            document.querySelectorAll('.vuln-subpanel').forEach(panel => panel.classList.add('hidden'));
+            const panel = document.getElementById('vuln-panel-' + type);
+            if (panel) panel.classList.remove('hidden');
+        }
+
+        async function startVulnCombinedDetection() {
+            const url = document.getElementById('vulnCombinedUrl').value.trim();
+            const code = document.getElementById('vulnCombinedCode').value.trim();
+            const lang = document.getElementById('vulnCombinedLang').value;
+            const depth = parseInt(document.getElementById('vulnCombinedDepth').value);
+
+            if (!url && !code) {
+                alert('请输入URL或源码内容');
+                return;
+            }
+
+            const btn = document.getElementById('vulnCombinedBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-5 w-5 inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 检测中...';
+
+            try {
+                const result = await apiCall('/api/v1/combined/detect', 'POST', {
+                    url: url || undefined,
+                    code: code || undefined,
+                    language: lang,
+                    depth: depth,
+                    enable_web_scan: !!url
+                });
+
+                console.log('检测结果:', result); // 调试输出
+
+                // 修复：正确处理各种可能的数据结构
+                const codeVulnCount = result.code_vulnerabilities?.vulnerabilities?.length || 
+                                    result.code_vulnerabilities?.count || 
+                                    (typeof result.code_vulnerabilities === 'number' ? result.code_vulnerabilities : 0) || 
+                                    0;
+
+                const urlVulnCount = result.url_vulnerabilities?.vulnerabilities?.length || 
+                                    (result.url_vulnerabilities?.is_vulnerable ? 1 : 0) || 
+                                    result.url_vulnerabilities?.count || 
+                                    0;
+
+                const webVulnCount = result.web_vulnerabilities?.vulnerabilities_found || 
+                                    result.web_vulnerabilities?.vulnerabilities?.length || 
+                                    result.web_vulnerabilities?.count || 
+                                    0;
+
+                // 更新显示 - 确保是字符串
+                document.getElementById('vulnCombinedCodeResult').textContent = String(codeVulnCount);
+                document.getElementById('vulnCombinedCodeResult').className = 'text-2xl font-bold ' + (codeVulnCount > 0 ? 'text-red-600' : 'text-green-600');
+
+                document.getElementById('vulnCombinedUrlResult').textContent = urlVulnCount > 0 ? String(urlVulnCount) : '安全';
+                document.getElementById('vulnCombinedUrlResult').className = 'text-2xl font-bold ' + (urlVulnCount > 0 ? 'text-red-600' : 'text-green-600');
+
+                document.getElementById('vulnCombinedWebResult').textContent = String(webVulnCount);
+                document.getElementById('vulnCombinedWebResult').className = 'text-2xl font-bold ' + (webVulnCount > 0 ? 'text-red-600' : 'text-green-600');
+
+                document.getElementById('vulnCombinedResult').classList.remove('hidden');
+                
+                if (result.task_id) {
+                    addTask({ id: result.task_id, type: 'vulnerability', status: 'completed', target: url || '源码检测', createdAt: new Date().toLocaleString(), result });
+                }
+
+            } catch (error) {
+                alert('检测失败: ' + error.message);
+                console.error(error);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg><span>执行综合检测</span>';
+            }
+        }
+
+
+        function selectLanguage(lang) {
+            currentLanguage = lang;
+            document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('lang-' + lang).classList.add('active');
+        }
+
+        // 自动识别代码语言
+        function autoDetectLanguage(code) {
+            if (!code || code.trim().length < 10) return; // 太短不识别
+
+            let scores = {
+                python: 0,
+                c: 0,
+                cpp: 0,
+                java: 0,
+                javascript: 0
+            };
+
+            const codeLower = code.toLowerCase();
+
+            // Python特征
+            if (/^\s*(def|class|import|from|import)\b/.test(code) || 
+                /import\s+\w+/g.test(code) ||
+                /^\s*#!/.test(code) ||
+                /\bprint\s*\(/g.test(code) ||
+                /\bself\b/.test(code) ||
+                /\bdef\s+\w+\s*\(/g.test(code) ||
+                /__\w+__/.test(code) ||
+                /\bpip\b/.test(codeLower) ||
+                /^\s*#\s*!/g.test(code)) {
+                scores.python += 10;
+            }
+            if (/^\s*#/.test(code) && !/^\s*\/\//.test(code)) {
+                scores.python += 2;
+            }
+
+            // C语言特征
+            if (/^\s*#include\s*</.test(code) ||
+                /\bprintf\s*\(/g.test(code) ||
+                /\bscanf\s*\(/g.test(code) ||
+                /\bmalloc\s*\(/g.test(code) ||
+                /\bfree\s*\(/g.test(code) ||
+                /\bint\s+main\s*\(/.test(code) ||
+                /\bchar\s*\*?\s*\w+/.test(code) ||
+                /\bstruct\s+\w+/.test(code)) {
+                scores.c += 10;
+            }
+
+            // C++特征
+            if (/\bstd::/.test(code) ||
+                /\bstd::vector|\bstd::string|\bstd::cout|\bstd::cin/.test(code) ||
+                /\bnew\s+\w+/.test(code) ||
+                /\bdelete\s+\w+/.test(code) ||
+                /\btemplate\s*</.test(code) ||
+                /\bclass\s+\w+\s*\{/.test(code) ||
+                /\bnamespace\s+\w+/.test(code)) {
+                scores.cpp += 10;
+            }
+
+            // Java特征
+            if (/\bpublic\s+class\s+\w+/.test(code) ||
+                /\bSystem\.out\.print/.test(code) ||
+                /\bpublic\s+static\s+void\s+main/.test(code) ||
+                /\bimport\s+java\./.test(code) ||
+                /\bnew\s+\w+\s*\(/.test(code) ||
+                /\btry\s*\{/.test(code) ||
+                /\bcatch\s*\(/.test(code)) {
+                scores.java += 10;
+            }
+
+            // JavaScript特征
+            if (/\bfunction\s*\w*\s*\(/.test(code) ||
+                /\bconst\s+\w+\s*=/.test(code) ||
+                /\blet\s+\w+\s*=/.test(code) ||
+                /\bvar\s+\w+\s*=/.test(code) ||
+                /\bconsole\.log/.test(code) ||
+                /\bdocument\./.test(code) ||
+                /\bwindow\./.test(code) ||
+                /\b=>/.test(code) ||
+                /\bPromise/.test(code) ||
+                /\basync\s+function/.test(code)) {
+                scores.javascript += 10;
+            }
+
+            // 找出最高分的语言
+            let maxScore = 0;
+            let detectedLang = null;
+            for (const [lang, score] of Object.entries(scores)) {
+                if (score > maxScore) {
+                    maxScore = score;
+                    detectedLang = lang;
+                }
+            }
+
+            // 如果检测到语言且分数足够，自动切换
+            if (detectedLang && maxScore >= 3 && detectedLang !== currentLanguage) {
+                selectLanguage(detectedLang);
+                console.log(`🔍 自动识别语言: ${detectedLang} (分数: ${maxScore})`);
+            }
+        }
+
+        function updateLineNumbers() {
+            const textarea = document.getElementById('codeInput');
+            const lineCount = textarea.value.split('\n').length;
+            document.getElementById('lineNumbers').innerHTML = Array.from({length: Math.max(lineCount, 10)}, (_, i) => i + 1).join('<br>');
+            document.getElementById('codeStats').textContent = `${lineCount} 行 | ${textarea.value.length} 字符`;
+            
+            // 自动识别代码语言
+            autoDetectLanguage(textarea.value);
+        }
+
+        function syncScroll() {
+            document.getElementById('lineNumbers').scrollTop = document.getElementById('codeInput').scrollTop;
+        }
+
+        function loadVulnExample(type) {
+            const examples = {
+                buffer_overflow: `#include <stdio.h>
+#include <string.h>
+void vulnerable_function(char *input) {
+    char buffer[64];
+    strcpy(buffer, input);
+    printf("Input: %s\\n", buffer);
+}
+int main(int argc, char *argv[]) {
+    if (argc > 1) vulnerable_function(argv[1]);
+    return 0;
+}`,
+                sql_injection: `import sqlite3
+def get_user_data(username):
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    query = "SELECT * FROM users WHERE username = '" + username + "'"
+    cursor.execute(query)
+    return cursor.fetchall()`,
+                command_injection: `import os
+def run_command(user_input):
+    result = os.system("ping " + user_input)
+    return result`
+            };
+            document.getElementById('codeInput').value = examples[type] || '';
+            updateLineNumbers();
+        }
+
+        async function startVulnDetection() {
+            const code = document.getElementById('codeInput').value.trim();
+            if (!code) { alert('请输入代码'); return; }
+
+            const btn = document.getElementById('vulnDetectBtn');
+            const scanLine = document.getElementById('vulnScanLine');
+            const statusText = document.getElementById('vulnDetectBtnText');
+            
+            btn.disabled = true;
+            statusText.textContent = 'VR AI分析中...';
+            scanLine.classList.remove('hidden');
+            document.getElementById('vulnResultPanel').classList.remove('hidden');
+            
+            // 显示加载提示
+            document.getElementById('vulnRiskLevel').textContent = '加载中...';
+            document.getElementById('vulnRiskLevel').className = 'text-4xl font-black tracking-tight text-blue-600';
+            document.getElementById('vulnCount').textContent = '模型启动中';
+            document.getElementById('vulnRiskDesc').textContent = '首次加载需要1-2分钟，请耐心等待';
+
+            try {
+                // 调用VR漏洞检测API
+                const result = await apiCall('/api/v1/vulnscan/code', 'POST', {
+                    code: code,
+                    language: currentLanguage
+                }, 300000); // 5分钟超时
+
+                // 适配VR结果展示
+                showVulnLLMRResults(result, code);
+                
+                if (result.task_id) {
+                    addTask({ id: result.task_id, type: 'source_code', status: 'completed', target: `代码片段 (${currentLanguage})`, createdAt: new Date().toLocaleString(), result });
+                }
+
+            } catch (error) {
+                // 更详细的错误提示
+                let errorMsg = '检测失败';
+                if (error.message.includes('timeout') || error.message.includes('超时')) {
+                    errorMsg = '检测超时：代码过长或模型加载失败，请重试或缩短代码';
+                } else if (error.message.includes('500')) {
+                    errorMsg = '服务器错误：模型可能未正确加载，请检查后端日志';
+                } else {
+                    errorMsg = '检测失败: ' + error.message;
+                }
+                alert(errorMsg);
+            } finally {
+                btn.disabled = false;
+                document.getElementById('vulnDetectBtnText').textContent = '开始检测';
+                scanLine.classList.add('hidden');
+            }
+        }
+
+        function showVulnResults(result) {
+            const banner = document.getElementById('vulnRiskBanner');
+            const riskLevel = document.getElementById('vulnRiskLevel');
+            const vulnCount = document.getElementById('vulnCount');
+            const riskDesc = document.getElementById('vulnRiskDesc');
+            const detectedLang = document.getElementById('detectedLang');
+            const vulnConfidence = document.getElementById('vulnConfidence');
+            const vulnList = document.getElementById('vulnList');
+
+            detectedLang.textContent = (result.language || currentLanguage).toUpperCase();
+            vulnConfidence.textContent = ((result.confidence || 0.85) * 100).toFixed(1) + '%';
+
+            document.getElementById('vulnProb').textContent = ((result.vulnerability_probability || result.vulnerabilityProbability || 0) * 100).toFixed(1) + '%';
+            document.getElementById('bar-vuln').style.width = ((result.vulnerability_probability || result.vulnerabilityProbability || 0) * 100) + '%';
+            document.getElementById('safeProb').textContent = ((result.safe_probability || result.safeProbability || 0) * 100).toFixed(1) + '%';
+            document.getElementById('bar-safe').style.width = ((result.safe_probability || result.safeProbability || 0) * 100) + '%';
+
+            const vulns = result.vulnerabilities || [];
+            if (vulns.length === 0) {
+                banner.className = 'glass rounded-2xl p-6 border-l-4 border-green-500';
+                riskLevel.textContent = '安全';
+                riskLevel.className = 'text-4xl font-black tracking-tight text-green-600';
+                vulnCount.textContent = '0 个漏洞';
+                riskDesc.textContent = '未检测到明显漏洞';
+                vulnList.innerHTML = '<div class="text-center py-8 text-gray-500"><svg class="w-16 h-16 mx-auto mb-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><p class="text-lg font-medium">恭喜！未检测到漏洞</p></div>';
+                return;
+            }
+
+            const hasCritical = vulns.some(v => v.severity === 'critical');
+            const hasHigh = vulns.some(v => v.severity === 'high');
+
+            if (hasCritical) {
+                banner.className = 'glass rounded-2xl p-6 border-l-4 border-red-600';
+                riskLevel.textContent = '严重风险';
+                riskLevel.className = 'text-4xl font-black tracking-tight text-red-700';
+                riskDesc.textContent = '检测到严重漏洞，建议立即修复';
+            } else if (hasHigh) {
+                banner.className = 'glass rounded-2xl p-6 border-l-4 border-red-500';
+                riskLevel.textContent = '高风险';
+                riskLevel.className = 'text-4xl font-black tracking-tight text-red-600';
+                riskDesc.textContent = '检测到高危漏洞，建议尽快修复';
+            } else {
+                banner.className = 'glass rounded-2xl p-6 border-l-4 border-amber-500';
+                riskLevel.textContent = '中风险';
+                riskLevel.className = 'text-4xl font-black tracking-tight text-amber-600';
+                riskDesc.textContent = '检测到一些潜在问题';
+            }
+
+            vulnCount.textContent = vulns.length + ' 个漏洞';
+            vulnList.innerHTML = vulns.map((vuln, idx) => `
+                <div class="vuln-card ${vuln.severity} rounded-lg p-4 animate-fade-in" style="animation-delay: ${idx * 0.1}s">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <span class="px-2.5 py-1 rounded-lg text-xs font-bold ${getSeverityClass(vuln.severity)}">${getSeverityText(vuln.severity)}</span>
+                                <span class="text-sm text-gray-500">第 ${vuln.line || '?'} 行</span>
+                                <span class="text-sm font-medium text-gray-800">${vuln.type || vuln.vulnerability_type || '未知'}</span>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-2">${vuln.desc || vuln.description || '无详细描述'}</p>
+                            ${vuln.code ? `<code class="block bg-slate-900 rounded-lg px-3 py-2 text-xs text-gray-300 mono">${escapeHtml(vuln.code)}</code>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getSeverityClass(severity) {
+            const classes = {
+                critical: 'bg-red-100 text-red-700 border border-red-200',
+                high: 'bg-orange-100 text-orange-700 border border-orange-200',
+                medium: 'bg-amber-100 text-amber-700 border border-amber-200',
+                low: 'bg-blue-100 text-blue-700 border border-blue-200'
+            };
+            return classes[severity] || classes.low;
+        }
+
+        function getSeverityText(severity) {
+            const texts = { critical: '严重', high: '高危', medium: '中危', low: '低危' };
+            return texts[severity] || severity;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // VR 结果展示函数
+        function showVulnLLMRResults(result, code) {
+            const banner = document.getElementById('vulnRiskBanner');
+            const riskLevel = document.getElementById('vulnRiskLevel');
+            const vulnCount = document.getElementById('vulnCount');
+            const riskDesc = document.getElementById('vulnRiskDesc');
+            const detectedLang = document.getElementById('detectedLang');
+            const vulnConfidence = document.getElementById('vulnConfidence');
+            const vulnList = document.getElementById('vulnList');
+
+            detectedLang.textContent = (result.language || currentLanguage).toUpperCase();
+            vulnConfidence.textContent = ((result.confidence || 0.75) * 100).toFixed(1) + '%';
+
+            // 显示概率条
+            const vulnProb = result.is_vulnerable ? result.confidence : (1 - result.confidence);
+            const safeProb = 1 - vulnProb;
+            document.getElementById('vulnProb').textContent = (vulnProb * 100).toFixed(1) + '%';
+            document.getElementById('bar-vuln').style.width = (vulnProb * 100) + '%';
+            document.getElementById('safeProb').textContent = (safeProb * 100).toFixed(1) + '%';
+            document.getElementById('bar-safe').style.width = (safeProb * 100) + '%';
+
+            // 根据结果设置风险等级
+            if (result.is_vulnerable) {
+                // 有漏洞
+                const severity = result.severity || 'medium';
+                let severityClass = '';
+                let severityText = '';
+                
+                switch(severity) {
+                    case 'critical':
+                        banner.className = 'glass rounded-2xl p-6 border-l-4 border-red-600';
+                        riskLevel.textContent = '严重风险';
+                        riskLevel.className = 'text-4xl font-black tracking-tight text-red-700';
+                        riskDesc.textContent = '检测到严重漏洞，建议立即修复';
+                        break;
+                    case 'high':
+                        banner.className = 'glass rounded-2xl p-6 border-l-4 border-red-500';
+                        riskLevel.textContent = '高风险';
+                        riskLevel.className = 'text-4xl font-black tracking-tight text-red-600';
+                        riskDesc.textContent = '检测到高危漏洞，建议尽快修复';
+                        break;
+                    case 'medium':
+                        banner.className = 'glass rounded-2xl p-6 border-l-4 border-amber-500';
+                        riskLevel.textContent = '中风险';
+                        riskLevel.className = 'text-4xl font-black tracking-tight text-amber-600';
+                        riskDesc.textContent = '检测到潜在漏洞，建议审查';
+                        break;
+                    default:
+                        banner.className = 'glass rounded-2xl p-6 border-l-4 border-blue-500';
+                        riskLevel.textContent = '低风险';
+                        riskLevel.className = 'text-4xl font-black tracking-tight text-blue-600';
+                        riskDesc.textContent = '检测到轻微问题';
+                }
+
+                vulnCount.textContent = '1 个漏洞';
+                
+                // 显示漏洞详情
+                // 处理CWE名称显示
+                let cweDisplayText;
+                if (!result.cwe_id || result.cwe_id === 'Unknown') {
+                    cweDisplayText = '<span class="text-sm font-medium text-gray-800">⚠️ 未识别的漏洞类型</span>';
+                } else if (result.cwe_name && result.cwe_name.startsWith('其他漏洞')) {
+                    cweDisplayText = `<span class="text-sm font-medium text-gray-800">🔍 ${escapeHtml(result.cwe_name)}</span>`;
+                } else {
+                    cweDisplayText = `<span class="text-sm font-medium text-gray-800">${result.cwe_id || 'Unknown'} - ${result.cwe_name || '未知漏洞'}</span>`;
+                }
+                
+                const vulnCardsHTML = `
+                    <div class="vuln-card ${severity} rounded-lg p-4 animate-fade-in">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <span class="px-2.5 py-1 rounded-lg text-xs font-bold ${getSeverityClass(severity)}">${getSeverityText(severity)}</span>
+                                    ${cweDisplayText}
+                                </div>
+                                <p class="text-sm text-gray-600 mb-2">${result.explanation || '检测到漏洞'}</p>
+                                <div class="mb-3">
+                                    <p class="text-xs font-semibold text-gray-700 mb-1">修复建议：</p>
+                                    <p class="text-sm text-gray-600 bg-green-50 rounded-lg px-3 py-2 border border-green-200">${result.fix_suggestion || '建议审查代码并参考安全编码指南'}</p>
+                                </div>
+                                <div class="flex items-center space-x-4 text-xs text-gray-500">
+                                    <span>置信度: ${((result.confidence || 0) * 100).toFixed(1)}%</span>
+                                    <span>模型: ${result.model_version || 'VR-7B'}</span>
+                                    <span>耗时: ${((result.inference_time || 0)).toFixed(1)}秒</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                vulnList.innerHTML = vulnCardsHTML;
+            } else {
+                // 无漏洞
+                banner.className = 'glass rounded-2xl p-6 border-l-4 border-green-500';
+                riskLevel.textContent = '安全';
+                riskLevel.className = 'text-4xl font-black tracking-tight text-green-600';
+                vulnCount.textContent = '0 个漏洞';
+                riskDesc.textContent = '未检测到明显漏洞';
+                vulnList.innerHTML = '<div class="text-center py-8 text-gray-500"><svg class="w-16 h-16 mx-auto mb-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><p class="text-lg font-medium">恭喜！未检测到漏洞</p><p class="text-sm mt-2">代码未检测到明显漏洞，建议继续保持安全编码实践。</p></div>';
+            }
+        }
+
+        // 变量存储
+        let folderFiles = [];
+        let multiFiles = [];
+        const supportedExtensions = ['.c', '.cpp', '.java', '.py', '.js', '.ts', '.html', '.php', '.go', '.rs', '.rb'];
+
+        function getLanguageFromExt(filename) {
+            const ext = '.' + filename.split('.').pop().toLowerCase();
+            const langMap = { 
+                '.c': 'c', '.cpp': 'cpp', '.cc': 'cpp', '.cxx': 'cpp', 
+                '.java': 'java', 
+                '.py': 'python', '.pyw': 'python', '.pyi': 'python',
+                '.js': 'javascript', '.jsx': 'javascript',
+                '.ts': 'typescript', '.tsx': 'typescript',
+                '.html': 'html', '.htm': 'html', '.xhtml': 'html',
+                '.php': 'php', '.phtml': 'php',
+                '.go': 'go', 
+                '.rs': 'rust',
+                '.rb': 'ruby'
+            };
+            return langMap[ext] || 'c';
+        }
+
+        function isSupportedFile(filename) {
+            const ext = '.' + filename.split('.').pop().toLowerCase();
+            return supportedExtensions.includes(ext);
+        }
+
+        function handleFolderSelect(event) {
+            const files = Array.from(event.target.files);
+            folderFiles = files.filter(f => isSupportedFile(f.name));
+            
+            const fileListEl = document.getElementById('folderFileList');
+            const fileListContent = document.getElementById('folderFileListContent');
+            const scanBtn = document.getElementById('folderScanBtn');
+            
+            if (folderFiles.length === 0) {
+                alert('未找到支持的代码文件（.c, .cpp, .java, .py, .js）');
+                scanBtn.disabled = true;
+                return;
+            }
+            
+            fileListEl.classList.remove('hidden');
+            fileListContent.innerHTML = folderFiles.map((f, i) => 
+                `<div class="flex items-center justify-between bg-gray-50 rounded px-3 py-2 text-xs">
+                    <span class="text-gray-700 truncate max-w-md">${f.webkitRelativePath || f.name}</span>
+                    <span class="text-gray-500">${(f.size / 1024).toFixed(1)} KB</span>
+                </div>`
+            ).join('');
+            
+            document.getElementById('folderTotalFiles').textContent = files.length;
+            scanBtn.disabled = false;
+        }
+
+        function handleMultiFileSelect(event) {
+            const files = Array.from(event.target.files);
+            multiFiles = files.filter(f => isSupportedFile(f.name));
+            
+            const fileListEl = document.getElementById('multiFileList');
+            const fileListContent = document.getElementById('multiFileListContent');
+            const scanBtn = document.getElementById('multiFileScanBtn');
+            
+            if (multiFiles.length === 0) {
+                alert('未找到支持的代码文件（.c, .cpp, .java, .py, .js）');
+                scanBtn.disabled = true;
+                return;
+            }
+            
+            fileListEl.classList.remove('hidden');
+            fileListContent.innerHTML = multiFiles.map((f, i) => 
+                `<div class="flex items-center justify-between bg-gray-50 rounded px-3 py-2 text-xs">
+                    <span class="text-gray-700 truncate max-w-md">${f.name}</span>
+                    <span class="text-gray-500">${(f.size / 1024).toFixed(1)} KB</span>
+                </div>`
+            ).join('');
+            
+            scanBtn.disabled = false;
+        }
+
+        async function startFolderScan() {
+            if (folderFiles.length === 0) return;
+            
+            const btn = document.getElementById('folderScanBtn');
+            const btnText = document.getElementById('folderScanBtnText');
+            const resultPanel = document.getElementById('folderScanResult');
+            
+            btn.disabled = true;
+            btnText.textContent = '扫描中...';
+            resultPanel.classList.remove('hidden');
+            
+            const resultsContainer = document.getElementById('folderScanFileResults');
+            
+            // 显示进度条
+            resultsContainer.innerHTML = `
+                <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-gray-600">检测进度</span>
+                        <span id="folderProgressText" class="text-purple-600 font-medium">0 / ${folderFiles.length}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div id="folderProgressBar" class="bg-gradient-to-r from-purple-600 to-purple-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-2">正在并发检测，请稍候...</div>
+                </div>
+                <div id="folderResultsList"></div>
+            `;
+            
+            const resultsList = document.getElementById('folderResultsList');
+            
+            // 并发控制函数（限制并发数为3）
+            async function processWithConcurrency(files, concurrency = 3) {
+                let completed = 0;
+                let vulnCount = 0;
+                let safeCount = 0;
+                let errors = 0;
+                
+                const updateProgress = () => {
+                    completed++;
+                    const percent = (completed / files.length * 100).toFixed(0);
+                    document.getElementById('folderProgressBar').style.width = percent + '%';
+                    document.getElementById('folderProgressText').textContent = `${completed} / ${files.length}`;
+                };
+                
+                // 处理单个文件
+                async function processFile(file, index) {
+                    try {
+                        const content = await readFile(file);
+                        const lang = getLanguageFromExt(file.name);
+                        
+                        // 添加结果占位符
+                        const resultDiv = document.createElement('div');
+                        resultDiv.id = `folder-result-${index}`;
+                        resultDiv.className = 'bg-gray-50 rounded-lg p-3 flex items-center justify-between mb-2';
+                        resultDiv.innerHTML = `
+                            <div class="flex-1 min-w-0">
+                                <div class="text-xs text-gray-600 truncate">${file.webkitRelativePath || file.name}</div>
+                                <div class="text-xs text-gray-400">${lang.toUpperCase()} | ${(file.size / 1024).toFixed(1)} KB</div>
+                            </div>
+                            <span class="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700 ml-2">检测中...</span>
+                        `;
+                        resultsList.appendChild(resultDiv);
+                        
+                        const result = await apiCall('/api/v1/vulnscan/code', 'POST', { code: content, language: lang }, 120000);
+                        
+                        if (result.is_vulnerable) {
+                            vulnCount++;
+                            const sevColors = { critical: 'bg-red-100 text-red-700', high: 'bg-orange-100 text-orange-700', medium: 'bg-amber-100 text-amber-700', low: 'bg-blue-100 text-blue-700' };
+                            const sevText = { critical: '严重', high: '高危', medium: '中危', low: '低危' };
+                            resultDiv.innerHTML = `
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-xs text-gray-600 truncate">${file.webkitRelativePath || file.name}</div>
+                                    <div class="text-xs text-gray-400">${lang.toUpperCase()} | ${(file.size / 1024).toFixed(1)} KB</div>
+                                </div>
+                                <span class="px-2 py-1 rounded text-xs font-bold ${sevColors[result.severity] || 'bg-gray-100 text-gray-700'} ml-2">⚠️ ${sevText[result.severity]}</span>
+                            `;
+                        } else {
+                            safeCount++;
+                            resultDiv.innerHTML = `
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-xs text-gray-600 truncate">${file.webkitRelativePath || file.name}</div>
+                                    <div class="text-xs text-gray-400">${lang.toUpperCase()} | ${(file.size / 1024).toFixed(1)} KB</div>
+                                </div>
+                                <span class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700 ml-2">✅ 安全</span>
+                            `;
+                        }
+                        
+                        if (result.task_id) {
+                            addTask({ id: result.task_id, type: 'source_code', status: 'completed', target: file.name, createdAt: new Date().toLocaleString(), result });
+                        }
+                    } catch (e) {
+                        errors++;
+                        const resultDiv = document.getElementById(`folder-result-${index}`);
+                        if (resultDiv) {
+                            resultDiv.innerHTML = `
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-xs text-gray-600 truncate">${file.webkitRelativePath || file.name}</div>
+                                    <div class="text-xs text-gray-400">${(file.size / 1024).toFixed(1)} KB</div>
+                                </div>
+                                <span class="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700 ml-2">❌ 错误</span>
+                            `;
+                        }
+                    } finally {
+                        updateProgress();
+                    }
+                }
+                
+                // 并发执行
+                const batches = [];
+                for (let i = 0; i < files.length; i += concurrency) {
+                    batches.push(files.slice(i, i + concurrency));
+                }
+                
+                for (const batch of batches) {
+                    await Promise.all(batch.map((file, idx) => processFile(file, folderFiles.indexOf(file))));
+                }
+                
+                return { vulnCount, safeCount, errors };
+            }
+            
+            const stats = await processWithConcurrency(folderFiles, 3);
+            
+            document.getElementById('folderDetectedFiles').textContent = folderFiles.length;
+            document.getElementById('folderVulnFiles').textContent = stats.vulnCount;
+            document.getElementById('folderSafeFiles').textContent = stats.safeCount;
+            
+            // 更新进度条为完成状态
+            document.getElementById('folderProgressBar').className = 'bg-green-500 h-2 rounded-full transition-all duration-300';
+            
+            btn.disabled = false;
+            btnText.textContent = '开始扫描';
+        }
+
+        async function startMultiFileScan() {
+            if (multiFiles.length === 0) return;
+            
+            const btn = document.getElementById('multiFileScanBtn');
+            const btnText = document.getElementById('multiFileScanBtnText');
+            const resultPanel = document.getElementById('multiFileResult');
+            
+            btn.disabled = true;
+            btnText.textContent = '检测中...';
+            resultPanel.classList.remove('hidden');
+            
+            const resultsContainer = document.getElementById('multiFileResults');
+            
+            // 显示进度条
+            resultsContainer.innerHTML = `
+                <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-gray-600">检测进度</span>
+                        <span id="multiProgressText" class="text-purple-600 font-medium">0 / ${multiFiles.length}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div id="multiProgressBar" class="bg-gradient-to-r from-purple-600 to-purple-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-2">正在并发检测，请稍候...</div>
+                </div>
+                <div id="multiResultsList"></div>
+            `;
+            
+            const resultsList = document.getElementById('multiResultsList');
+            
+            // 并发控制函数（限制并发数为3）
+            async function processWithConcurrency(files, concurrency = 3) {
+                let completed = 0;
+                let vulnCount = 0;
+                let safeCount = 0;
+                let errors = 0;
+                
+                const updateProgress = () => {
+                    completed++;
+                    const percent = (completed / files.length * 100).toFixed(0);
+                    document.getElementById('multiProgressBar').style.width = percent + '%';
+                    document.getElementById('multiProgressText').textContent = `${completed} / ${files.length}`;
+                };
+                
+                // 处理单个文件
+                async function processFile(file, index) {
+                    try {
+                        const content = await readFile(file);
+                        const lang = getLanguageFromExt(file.name);
+                        
+                        // 添加结果占位符
+                        const resultDiv = document.createElement('div');
+                        resultDiv.id = `multi-result-${index}`;
+                        resultDiv.className = 'bg-gray-50 rounded-lg p-3 flex items-center justify-between mb-2';
+                        resultDiv.innerHTML = `
+                            <div class="flex-1 min-w-0">
+                                <div class="text-xs text-gray-600 truncate">${file.name}</div>
+                                <div class="text-xs text-gray-400">${lang.toUpperCase()} | ${(file.size / 1024).toFixed(1)} KB</div>
+                            </div>
+                            <span class="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700 ml-2">检测中...</span>
+                        `;
+                        resultsList.appendChild(resultDiv);
+                        
+                        const result = await apiCall('/api/v1/vulnscan/code', 'POST', { code: content, language: lang }, 120000);
+                        
+                        if (result.is_vulnerable) {
+                            vulnCount++;
+                            const sevColors = { critical: 'bg-red-100 text-red-700', high: 'bg-orange-100 text-orange-700', medium: 'bg-amber-100 text-amber-700', low: 'bg-blue-100 text-blue-700' };
+                            const sevText = { critical: '严重', high: '高危', medium: '中危', low: '低危' };
+                            resultDiv.innerHTML = `
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-xs text-gray-600 truncate">${file.name}</div>
+                                    <div class="text-xs text-gray-400">${lang.toUpperCase()} | ${(file.size / 1024).toFixed(1)} KB</div>
+                                </div>
+                                <span class="px-2 py-1 rounded text-xs font-bold ${sevColors[result.severity] || 'bg-gray-100 text-gray-700'} ml-2">⚠️ ${sevText[result.severity]}</span>
+                            `;
+                        } else {
+                            safeCount++;
+                            resultDiv.innerHTML = `
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-xs text-gray-600 truncate">${file.name}</div>
+                                    <div class="text-xs text-gray-400">${lang.toUpperCase()} | ${(file.size / 1024).toFixed(1)} KB</div>
+                                </div>
+                                <span class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700 ml-2">✅ 安全</span>
+                            `;
+                        }
+                        
+                        if (result.task_id) {
+                            addTask({ id: result.task_id, type: 'source_code', status: 'completed', target: file.name, createdAt: new Date().toLocaleString(), result });
+                        }
+                    } catch (e) {
+                        errors++;
+                        const resultDiv = document.getElementById(`multi-result-${index}`);
+                        if (resultDiv) {
+                            resultDiv.innerHTML = `
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-xs text-gray-600 truncate">${file.name}</div>
+                                    <div class="text-xs text-gray-400">${(file.size / 1024).toFixed(1)} KB</div>
+                                </div>
+                                <span class="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700 ml-2">❌ 错误</span>
+                            `;
+                        }
+                    } finally {
+                        updateProgress();
+                    }
+                }
+                
+                // 并发执行
+                const batches = [];
+                for (let i = 0; i < files.length; i += concurrency) {
+                    batches.push(files.slice(i, i + concurrency));
+                }
+                
+                for (const batch of batches) {
+                    await Promise.all(batch.map((file, idx) => processFile(file, multiFiles.indexOf(file))));
+                }
+                
+                return { vulnCount, safeCount, errors };
+            }
+            
+            const stats = await processWithConcurrency(multiFiles, 3);
+            
+            document.getElementById('multiTotalFiles').textContent = multiFiles.length;
+            document.getElementById('multiDetectedFiles').textContent = multiFiles.length;
+            document.getElementById('multiVulnFiles').textContent = stats.vulnCount;
+            document.getElementById('multiSafeFiles').textContent = stats.safeCount;
+            
+            // 更新进度条为完成状态
+            document.getElementById('multiProgressBar').className = 'bg-green-500 h-2 rounded-full transition-all duration-300';
+            
+            btn.disabled = false;
+            btnText.textContent = '开始检测';
+        }
+
+        function readFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+                reader.readAsText(file);
+            });
+        }
+
+        async function startUrlVulnDetection() {
+            const url = document.getElementById('vulnUrlInput').value.trim();
+            if (!url) { alert('请输入URL'); return; }
+
+            const btn = document.getElementById('urlVulnDetectBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-5 w-5 inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 检测中...';
+
+            try {
+                const result = await apiCall('/api/v1/vulnerability/url', 'POST', {
+                    url: url,
+                    use_distilbert: true
+                });
+
+                showVulnResults(result);
+                document.getElementById('vulnResultPanel').classList.remove('hidden');
+                if (result.task_id) addTask({ id: result.task_id, type: 'url', status: 'completed', target: url, createdAt: new Date().toLocaleString(), result });
+
+            } catch (error) {
+                alert('检测失败: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg><span>检测</span>';
+            }
+        }
+
+        function quickVulnUrlTest(url) {
+            document.getElementById('vulnUrlInput').value = url;
+            startUrlVulnDetection();
+        }
+
+        async function startWebScan() {
+            const url = document.getElementById('webScanUrlInput').value.trim();
+            const depth = parseInt(document.getElementById('scanDepth').value);
+            const cookie = document.getElementById('scanCookie').value;
+
+            if (!url) { alert('请输入网站地址'); return; }
+
+            const btn = document.getElementById('webScanBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-5 w-5 inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 扫描中...';
+
+            try {
+                const result = await apiCall('/api/v1/vulnerability/web', 'POST', {
+                    url: url,
+                    depth: depth,
+                    cookie: cookie || undefined,
+                    check_vulnerabilities: true
+                });
+
+                alert(`Web扫描完成！\n扫描页面: ${result.pages_scanned || result.pages || 0} 个\n发现漏洞: ${result.vulnerabilities_found || result.vulns || 0} 个`);
+                if (result.task_id) addTask({ id: result.task_id, type: 'web', status: 'completed', target: url, createdAt: new Date().toLocaleString(), result });
+
+            } catch (error) {
+                alert('扫描失败: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span>开始扫描</span>';
+            }
+        }
+
+        // ==================== 综合检测功能 ====================
+        async function startCombinedDetection() {
+            const url = document.getElementById('combinedUrlInput').value.trim();
+            if (!url) { alert('请输入目标网址'); return; }
+
+            const btn = document.getElementById('combinedDetectBtn');
+            const progressPanel = document.getElementById('combinedProgressPanel');
+            const resultPanel = document.getElementById('combinedResultPanel');
+            const vulnDetailSection = document.getElementById('vulnDetailSection');
+
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-5 w-5 inline" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 检测中...';
+            progressPanel.classList.remove('hidden');
+            resultPanel.classList.add('hidden');
+            vulnDetailSection.classList.add('hidden');
+            resetCombinedProgress();
+
+            const taskId = 'COMBINED_' + Date.now();
+            addTask({ id: taskId, type: 'combined', status: 'processing', target: url, createdAt: new Date().toLocaleString() });
+
+            try {
+                // 步骤1: 爬虫抓取（模拟进度）
+                await updateCombinedProgress('crawl', 30, '正在抓取...');
+                await new Promise(r => setTimeout(r, 1000));
+                await updateCombinedProgress('crawl', 100, '完成');
+
+                // 步骤2: 钓鱼检测（已停用）
+                const phishingResult = { risk_score: 0, decision: 'safe' };
+                await updateCombinedProgress('phishing', 100, '已跳过');
+
+                // 步骤3: 漏洞检测
+                await updateCombinedProgress('vuln', 30, '检测中...');
+                const vulnResult = await apiCall('/api/v1/combined/detect', 'POST', {
+                    url,
+                    use_crawled_data: true,
+                    enable_all_checks: true
+                });
+                await updateCombinedProgress('vuln', 100, '完成');
+
+                // 显示结果
+                showCombinedResults(phishingResult, vulnResult.code, vulnResult.url, vulnResult.web, vulnResult.crawl || { pages: 5, links: 20, forms: 2, lang: 'html' });
+                updateTask(taskId, { status: 'completed', result: { phishing: phishingResult, ...vulnResult } });
+
+            } catch (error) {
+                updateTask(taskId, { status: 'failed', result: { error: error.message } });
+                alert('检测失败: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span>开始综合检测</span>';
+            }
+        }
+
+        function resetCombinedProgress() {
+            ['crawl', 'phishing', 'vuln'].forEach(step => {
+                document.getElementById('progress-' + step + '-bar').style.width = '0%';
+                document.getElementById('progress-' + step + '-status').textContent = '等待中';
+                const icon = document.getElementById('progress-' + step + '-icon');
+                icon.className = 'w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-medium text-gray-600';
+                if (step === 'crawl') icon.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>';
+                else icon.textContent = step === 'phishing' ? '1' : '2';
+            });
+        }
+
+        async function updateCombinedProgress(step, percent, status) {
+            document.getElementById('progress-' + step + '-bar').style.width = percent + '%';
+            document.getElementById('progress-' + step + '-status').textContent = status;
+            const icon = document.getElementById('progress-' + step + '-icon');
+            if (percent === 100) {
+                icon.className = 'w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white font-bold';
+                icon.innerHTML = '✓';
+            } else if (percent > 0) {
+                icon.className = 'w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white animate-pulse font-bold';
+            }
+        }
+
+        function showCombinedResults(phishing, code, url, web, crawled) {
+            const resultPanel = document.getElementById('combinedResultPanel');
+            const banner = document.getElementById('combinedRiskBanner');
+            const vulnDetailSection = document.getElementById('vulnDetailSection');
+
+            resultPanel.classList.remove('hidden');
+
+            // 钓鱼结果
+            const phishScore = (phishing.risk_score || phishing.final_score || 0) * 100;
+            document.getElementById('combinedPhishingResult').textContent = phishScore.toFixed(1) + '%';
+            document.getElementById('combinedPhishingResult').className = 'text-sm font-bold ' + (phishScore > 50 ? 'text-red-600' : 'text-green-600');
+            document.getElementById('combinedPhishingDetail').textContent = `风险指数: ${phishScore.toFixed(1)}% | 模型: DEEP`;
+
+            // 漏洞结果
+            const codeVulns = code?.vulnerabilities?.length || 0;
+            const urlVulns = url?.is_vulnerable ? 1 : 0;
+            const webVulns = web?.vulnerabilities_found || 0;
+            const totalVulns = codeVulns + urlVulns + webVulns;
+
+            document.getElementById('combinedVulnResult').textContent = totalVulns > 0 ? totalVulns + ' 个' : '安全';
+            document.getElementById('combinedVulnResult').className = 'text-sm font-bold ' + (totalVulns > 0 ? 'text-red-600' : 'text-green-600');
+            document.getElementById('combinedVulnDetail').textContent = totalVulns > 0 ? `发现 ${totalVulns} 个安全问题` : '未检测到漏洞';
+
+            // 爬虫信息
+            document.getElementById('crawlInfoSection').classList.remove('hidden');
+            document.getElementById('crawlPages').textContent = crawled?.pages || 0;
+            document.getElementById('crawlLinks').textContent = crawled?.links || 0;
+            document.getElementById('crawlForms').textContent = crawled?.forms || 0;
+            document.getElementById('crawlCodeLang').textContent = (crawled?.lang || 'HTML').toUpperCase();
+
+            // 漏洞详情
+            if (totalVulns > 0) {
+                vulnDetailSection.classList.remove('hidden');
+                document.getElementById('detailCodeVuln').textContent = codeVulns;
+                document.getElementById('detailUrlVuln').textContent = urlVulns > 0 ? '有风险' : '安全';
+                document.getElementById('detailWebVuln').textContent = webVulns;
+            }
+
+            // 总体评估
+            document.getElementById('combinedItemCount').textContent = '2/2';
+            const hasRisk = phishScore > 50 || totalVulns > 0;
+            
+            if (phishScore >= 80 || totalVulns > 2) {
+                banner.className = 'glass rounded-2xl p-6 border-l-4 border-red-600';
+                document.getElementById('combinedRiskLevel').textContent = '高风险';
+                document.getElementById('combinedRiskLevel').className = 'text-4xl font-black tracking-tight text-red-700';
+                document.getElementById('combinedRiskDesc').textContent = '检测到严重安全威胁，建议立即处理';
+            } else if (hasRisk) {
+                banner.className = 'glass rounded-2xl p-6 border-l-4 border-amber-500';
+                document.getElementById('combinedRiskLevel').textContent = '中风险';
+                document.getElementById('combinedRiskLevel').className = 'text-4xl font-black tracking-tight text-amber-600';
+                document.getElementById('combinedRiskDesc').textContent = '发现安全问题，建议尽快修复';
+            } else {
+                banner.className = 'glass rounded-2xl p-6 border-l-4 border-green-500';
+                document.getElementById('combinedRiskLevel').textContent = '安全';
+                document.getElementById('combinedRiskLevel').className = 'text-4xl font-black tracking-tight text-green-600';
+                document.getElementById('combinedRiskDesc').textContent = '未检测到安全威胁';
+            }
+            document.getElementById('combinedRiskScore').textContent = hasRisk ? (phishScore > 50 ? '钓鱼风险' : '漏洞风险') : '无风险';
+        }
+
+        function generateCombinedReport() {
+            alert('正在生成综合检测报告...\n报告将包含钓鱼检测和漏洞检测的完整结果。');
+        }
+
+        // ==================== 任务管理 ====================
+        function addTask(task) {
+            tasks.unshift(task);
+            updateTaskStats();
+            if (document.getElementById('module-tasks').classList.contains('active')) renderTaskList();
+        }
+
+        function updateTask(taskId, updates) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                Object.assign(task, updates);
+                updateTaskStats();
+                if (document.getElementById('module-tasks').classList.contains('active')) renderTaskList();
+            }
+        }
+
+        function updateTaskStats() {
+            document.getElementById('totalTasks').textContent = tasks.length;
+            document.getElementById('pendingTasks').textContent = tasks.filter(t => t.status === 'pending').length;
+            document.getElementById('pendingTasksCount').textContent = tasks.filter(t => t.status === 'pending').length;
+            document.getElementById('processingTasksCount').textContent = tasks.filter(t => t.status === 'processing').length;
+            document.getElementById('completedTasksCount').textContent = tasks.filter(t => t.status === 'completed').length;
+        }
+
+        function renderTaskList() {
+            const statusFilter = document.getElementById('taskStatusFilter').value;
+            const typeFilter = document.getElementById('taskTypeFilter').value;
+            let filtered = tasks;
+            if (statusFilter !== 'all') filtered = filtered.filter(t => t.status === statusFilter);
+            if (typeFilter !== 'all') filtered = filtered.filter(t => t.type === typeFilter);
+
+            const tbody = document.getElementById('taskList');
+            const emptyMsg = document.getElementById('emptyTaskList');
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '';
+                emptyMsg.classList.remove('hidden');
+                return;
+            }
+
+            emptyMsg.classList.add('hidden');
+            const typeNames = {
+                phishing: '钓鱼检测', source_code: '源码检测', url: 'URL检测',
+                web: 'Web扫描', batch: '批量检测', combined: '综合检测', vulnerability: '漏洞检测'
+            };
+
+            tbody.innerHTML = filtered.map(task => {
+                const statusClass = { pending: 'status-pending', processing: 'status-processing', completed: 'status-completed', failed: 'status-failed' }[task.status] || 'status-pending';
+                const statusText = { pending: '待处理', processing: '检测中', completed: '已完成', failed: '失败' }[task.status] || task.status;
+                
+                // 构建结果列内容
+                let resultHTML = '-';
+                if (task.result) {
+                    if (task.type === 'source_code' || task.type === 'vulnerability') {
+                        const r = task.result;
+                        const severityBadges = {
+                            'critical': '<span class="px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700">严重</span>',
+                            'high': '<span class="px-2 py-0.5 rounded text-xs font-bold bg-orange-100 text-orange-700">高危</span>',
+                            'medium': '<span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-700">中危</span>',
+                            'low': '<span class="px-2 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-700">低危</span>'
+                        };
+                        
+                        if (r.is_vulnerable) {
+                            resultHTML = `
+                                <div class="space-y-1">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-red-600 font-medium text-sm">⚠️ 存在漏洞</span>
+                                        ${severityBadges[r.severity] || ''}
+                                    </div>
+                                    <div class="text-xs text-gray-500">${r.cwe_name || '未知类型'} (${r.cwe_id || '?'})</div>
+                                </div>
+                            `;
+                        } else {
+                            resultHTML = '<span class="text-green-600 font-medium text-sm">✅ 代码安全</span>';
+                        }
+                    } else if (task.type === 'phishing') {
+                        const score = (task.result.risk_score || task.result.final_score || 0) * 100;
+                        resultHTML = score > 50 ? 
+                            `<span class="text-red-600 font-medium text-sm">⚠️ ${score.toFixed(1)}%</span>` :
+                            `<span class="text-green-600 font-medium text-sm">✅ ${score.toFixed(1)}%</span>`;
+                    } else if (task.result.is_vulnerable || task.result.vulnerabilities?.length > 0) {
+                        resultHTML = '<span class="text-red-600 font-medium">存在风险</span>';
+                    } else {
+                        resultHTML = '<span class="text-green-600 font-medium">安全</span>';
+                    }
+                }
+                
+                return `
+                    <tr class="hover:bg-gray-50/50 transition">
+                        <td class="px-4 py-3 mono text-xs text-gray-600">${task.id}</td>
+                        <td class="px-4 py-3"><span class="px-2.5 py-1 rounded-lg text-xs bg-gray-100 text-gray-700 border border-gray-200">${typeNames[task.type] || task.type}</span></td>
+                        <td class="px-4 py-3"><span class="px-2.5 py-1 rounded-lg text-xs ${statusClass}">${statusText}</span></td>
+                        <td class="px-4 py-3">${resultHTML}</td>
+                        <td class="px-4 py-3 text-xs text-gray-500">${task.createdAt}</td>
+                        <td class="px-4 py-3"><button onclick="showTaskDetail('${task.id}')" class="text-blue-600 hover:text-blue-700 text-sm font-medium">查看详情</button></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterTasks() { renderTaskList(); }
+        function refreshTasks() { renderTaskList(); }
+
+        function showTaskDetail(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+            const modal = document.getElementById('taskDetailModal');
+            const content = document.getElementById('taskDetailContent');
+            
+            let detailHTML = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-gray-50 rounded-lg p-3"><div class="text-xs text-gray-500">任务ID</div><div class="text-sm font-mono text-gray-700">${task.id}</div></div>
+                        <div class="bg-gray-50 rounded-lg p-3"><div class="text-xs text-gray-500">类型</div><div class="text-sm text-gray-700">${task.type === 'source_code' ? '源码检测' : task.type === 'vulnerability' ? '漏洞检测' : task.type}</div></div>
+                        <div class="bg-gray-50 rounded-lg p-3"><div class="text-xs text-gray-500">状态</div><div class="text-sm text-gray-700">${task.status === 'completed' ? '已完成' : task.status === 'processing' ? '检测中' : task.status === 'failed' ? '失败' : '待处理'}</div></div>
+                        <div class="bg-gray-50 rounded-lg p-3"><div class="text-xs text-gray-500">创建时间</div><div class="text-sm text-gray-700">${task.createdAt}</div></div>
+                    </div>
+            `;
+            
+            // 源码检测/漏洞检测报告
+            if (task.result && (task.type === 'source_code' || task.type === 'vulnerability')) {
+                const r = task.result;
+                const isVuln = r.is_vulnerable;
+                const severityColors = {
+                    'critical': 'bg-red-100 text-red-700 border-red-200',
+                    'high': 'bg-orange-100 text-orange-700 border-orange-200',
+                    'medium': 'bg-amber-100 text-amber-700 border-amber-200',
+                    'low': 'bg-blue-100 text-blue-700 border-blue-200'
+                };
+                const severityLabels = {
+                    'critical': '严重', 'high': '高危', 'medium': '中危', 'low': '低危'
+                };
+                
+                detailHTML += `
+                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                        <div class="bg-gradient-to-r from-purple-50 to-pink-50 px-4 py-3 border-b border-gray-200">
+                            <h4 class="font-semibold text-gray-800 flex items-center">
+                                <svg class="w-4 h-4 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                漏洞检测报告
+                            </h4>
+                        </div>
+                        <div class="p-4 space-y-3">
+                            <!-- 检测结果横幅 -->
+                            <div class="flex items-center justify-between p-3 rounded-lg ${isVuln ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}">
+                                <div class="flex items-center space-x-2">
+                                    ${isVuln ? '<span class="text-red-600 text-lg">⚠️</span>' : '<span class="text-green-600 text-lg">✅</span>'}
+                                    <span class="font-semibold ${isVuln ? 'text-red-700' : 'text-green-700'}">${isVuln ? '存在漏洞' : '代码安全'}</span>
+                                </div>
+                                ${isVuln ? `<span class="px-2.5 py-1 rounded-lg text-xs font-bold ${severityColors[r.severity] || severityColors.low}">${severityLabels[r.severity] || '低危'}</span>` : ''}
+                            </div>
+                `;
+                
+                if (isVuln) {
+                    detailHTML += `
+                            <!-- 漏洞详情 -->
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <div class="text-xs text-gray-500 mb-1">漏洞类型</div>
+                                    <div class="text-sm font-semibold text-gray-800">${r.cwe_name || '未知'}</div>
+                                </div>
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <div class="text-xs text-gray-500 mb-1">CWE编号</div>
+                                    <div class="text-sm font-mono text-gray-800">${r.cwe_id || 'Unknown'}</div>
+                                </div>
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <div class="text-xs text-gray-500 mb-1">置信度</div>
+                                    <div class="text-sm font-semibold text-gray-800">${((r.confidence || 0) * 100).toFixed(1)}%</div>
+                                </div>
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <div class="text-xs text-gray-500 mb-1">编程语言</div>
+                                    <div class="text-sm font-semibold text-gray-800">${(r.language || '').toUpperCase()}</div>
+                                </div>
+                            </div>
+                            
+                            <!-- 漏洞解释 -->
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <div class="text-xs text-gray-500 mb-1">漏洞说明</div>
+                                <div class="text-sm text-gray-700">${r.explanation || '检测到潜在漏洞'}</div>
+                            </div>
+                            
+                            <!-- 修复建议 -->
+                            <div class="bg-green-50 rounded-lg p-3 border border-green-200">
+                                <div class="text-xs text-green-600 mb-1 font-semibold">修复建议</div>
+                                <div class="text-sm text-gray-700">${r.fix_suggestion || '建议审查代码并参考安全编码指南'}</div>
+                            </div>
+                            
+                            <!-- 推理链摘要 -->
+                            ${r.reasoning_chain ? `
+                            <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                                <div class="text-xs text-slate-600 mb-1 font-semibold">分析推理链</div>
+                                <div class="text-xs text-gray-600 max-h-24 overflow-y-auto mono whitespace-pre-wrap">${escapeHtml(r.reasoning_chain)}</div>
+                            </div>
+                            ` : ''}
+                            
+                            <!-- 性能信息 -->
+                            <div class="flex items-center space-x-4 text-xs text-gray-500 pt-2 border-t border-gray-200">
+                                <span>🤖 模型: ${r.model_version || 'VR-7B'}</span>
+                                <span>⏱️ 耗时: ${((r.inference_time || 0)).toFixed(1)}秒</span>
+                            </div>
+                    `;
+                } else {
+                    detailHTML += `
+                            <div class="bg-green-50 rounded-lg p-4 text-center border border-green-200">
+                                <svg class="w-12 h-12 mx-auto mb-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <p class="text-green-700 font-semibold">未检测到漏洞</p>
+                                <p class="text-xs text-gray-500 mt-1">代码通过了VR安全检测</p>
+                            </div>
+                            
+                            <div class="flex items-center space-x-4 text-xs text-gray-500 pt-2 border-t border-gray-200">
+                                <span>🤖 模型: ${r.model_version || 'VR-7B'}</span>
+                                <span>⏱️ 耗时: ${((r.inference_time || 0)).toFixed(1)}秒</span>
+                            </div>
+                    `;
+                }
+                
+                detailHTML += `
+                        </div>
+                    </div>
+                `;
+            } else if (task.result) {
+                detailHTML += `<div class="bg-gray-50 rounded-lg p-4"><div class="text-xs text-gray-500 mb-2">检测结果</div><pre class="text-xs text-gray-700 overflow-auto max-h-60">${JSON.stringify(task.result, null, 2)}</pre></div>`;
+            } else {
+                detailHTML += '<div class="text-gray-500 text-center py-4">暂无检测结果</div>';
+            }
+            
+            detailHTML += '</div>';
+            content.innerHTML = detailHTML;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeTaskModal() {
+            const modal = document.getElementById('taskDetailModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function downloadReport() {
+            const reportPath = document.getElementById('reportPath').textContent;
+            alert(`报告下载: ${reportPath}\n在实际部署中，这里会触发文件下载。`);
+        }
+
+        // 键盘快捷键
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                if (document.getElementById('module-phishing').classList.contains('active')) startDetection();
+                else if (document.getElementById('module-vulnerability').classList.contains('active')) {
+                    if (currentVulnType === 'source_code') startVulnDetection();
+                    else if (currentVulnType === 'url') startUrlVulnDetection();
+                }
+            }
+            if (e.key === 'Escape') {
+                document.getElementById('whitelistPanel').classList.add('translate-x-full');
+                closeTaskModal();
+            }
+        });
+
+        // 初始化
+        selectModel('svm');
+        updateLineNumbers();
+    </script>
+</body>
+</html>

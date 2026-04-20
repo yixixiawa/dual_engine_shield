@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HTML 漏洞测试</title>
+</head>
+<body>
+    <h1>用户评论</h1>
+    
+    <!-- CWE-79: XSS 漏洞 - 直接输出用户输入 -->
+    <div id="comments"></div>
+    
+    <script>
+        // 从 URL 参数获取评论并直接输出到 DOM
+        const params = new URLSearchParams(window.location.search);
+        const comment = params.get('comment');
+        
+        // 不安全的操作
+        document.getElementById('comments').innerHTML = comment;
+        
+        // 或者通过 document.write
+        document.write(comment);
+    </script>
+    
+    <!-- CWE-1021: 点击劫持风险 -->
+    <iframe src="trusted-site.com" style="opacity:0; position:absolute;"></iframe>
+    
+    <!-- CWE-601: Open Redirect -->
+    <a href="javascript:void(0)" onclick="window.location = 'http://' + getParameter('redirect')">
+        Click here
+    </a>
+    
+    <!-- CWE-352: CSRF 风险 - 缺少验证 -->
+    <form action="/api/transfer-money" method="POST">
+        <input type="hidden" name="amount" value="1000">
+        <input type="hidden" name="to_account" value="attacker">
+        <button>点击领取奖励</button>
+    </form>
+</body>
+</html>
