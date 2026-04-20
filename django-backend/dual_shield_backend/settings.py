@@ -23,8 +23,8 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 # Application definition
 INSTALLED_APPS = [
-    'django.contrib.contenttypes',
-    'django.contrib.auth',
+    'django.contrib.contenttypes',  # 必需：Django ORM 依赖
+    'django.contrib.auth',          # REST Framework 依赖（但不启用认证功能）
     'rest_framework',
     'corsheaders',
     'drf_spectacular',
@@ -35,7 +35,6 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
     'api.middleware.RequestLoggingMiddleware',
 ]
 
@@ -50,7 +49,6 @@ TEMPLATES = [
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
             ],
         },
     },
@@ -66,38 +64,6 @@ DATABASES = {
         'CONN_MAX_AGE': 600,  # 连接池超时时间
     }
 }
-
-# 可选：PostgreSQL 配置 (生产环境推荐)
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': os.getenv('DB_NAME', 'dual_shield'),
-#         'USER': os.getenv('DB_USER', 'postgres'),
-#         'PASSWORD': os.getenv('DB_PASSWORD', ''),
-#         'HOST': os.getenv('DB_HOST', 'localhost'),
-#         'PORT': os.getenv('DB_PORT', '5432'),
-#         'CONN_MAX_AGE': 600,
-#     }
-# }
-
-# ======================== 密码验证 ========================
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-        'OPTIONS': {
-            'min_length': 8,
-        }
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-]
 
 # ======================== 国际化 ========================
 LANGUAGE_CODE = 'zh-hans'
@@ -140,18 +106,16 @@ REST_FRAMEWORK = {
 # ======================== CORS 配置 ========================
 CORS_ALLOWED_ORIGINS = os.getenv(
     'CORS_ALLOWED_ORIGINS',
-    'http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000'
+    'http://localhost:23357,http://127.0.0.1:23357'
 ).split(',')
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
+CORS_EXPOSE_HEADERS = ['Content-Type']
 
 # ======================== 安全设置 ========================
 if not DEBUG:
     # 生产环境安全设置
     SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_SECURITY_POLICY = {
         'default-src': ("'self'",),
@@ -240,6 +204,16 @@ DETECTION_CONFIG = {
     }
 }
 
+# ======================== 钓鱼检测配置 (GTE 双模型) ========================
+PHISHING_DETECTION = {
+    'mode': os.getenv('PHISHING_MODE', 'ensemble'),  # ensemble, original, chiphish
+    'threshold': float(os.getenv('PHISHING_THRESHOLD', '0.5')),
+    'ensemble_strategy': os.getenv('PHISHING_ENSEMBLE_STRATEGY', 'weighted'),
+    'w_original': float(os.getenv('PHISHING_W_ORIGINAL', '0.7')),
+    'w_chiphish': float(os.getenv('PHISHING_W_CHIPHISH', '0.3')),
+    'max_length': int(os.getenv('PHISHING_MAX_LENGTH', '512')),
+}
+
 # ======================== 任务队列配置 (可选) ========================
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
@@ -248,11 +222,6 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
-# ======================== 会话配置 ========================
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = 'Lax'
-CSRF_COOKIE_SAMESITE = 'Lax'
-
 # ======================== 文件上传配置 ========================
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880  # 5MB
@@ -260,28 +229,6 @@ FILE_UPLOAD_PERMISSIONS = 0o644
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-
-# Logging
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '[%(asctime)s] %(name)s: %(levelname)s - %(message)s'
-        },
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
-        },
-    },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO',
-    },
-}
 
 # VulnScan configuration
 VULSCAN_MODELS_PATH = os.path.join(BASE_DIR.parent, 'models')
