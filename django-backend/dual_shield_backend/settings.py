@@ -1,6 +1,6 @@
-"""
+﻿"""
 Django 设置 for dual-shield 项目
-安全配置和生产环境最佳实践
+安全配置和生产环境最佳实�?
 """
 
 import os
@@ -56,7 +56,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'dual_shield_backend.wsgi.application'
 
-# ======================== 数据库配置 ========================
+# ======================== 数据库配�?========================
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -64,17 +64,17 @@ DATABASES = {
     }
 }
 
-# ======================== 国际化 ========================
+# ======================== 国际�?========================
 LANGUAGE_CODE = 'zh-hans'
 TIME_ZONE = 'Asia/Shanghai'
 USE_I18N = True
 USE_TZ = True
 
 # ======================== URL 配置 ========================
-# 禁用自动尾部斜杠添加，避免 POST 请求重定向问题
+# 禁用自动尾部斜杠添加，避�?POST 请求重定向问�?
 APPEND_SLASH = False
 
-# ======================== 静态文件 ========================
+# ======================== 静态文�?========================
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
@@ -195,7 +195,7 @@ LOGGING = {
 LOGS_DIR = BASE_DIR / 'logs'
 LOGS_DIR.mkdir(exist_ok=True)
 
-# ======================== 检测模型配置 ========================
+# ======================== 检测模型配�?========================
 DETECTION_CONFIG = {
     'phishing': {
         'model_dir': os.getenv('PHISHING_MODEL_DIR', BASE_DIR / 'models' / 'phishing'),
@@ -209,7 +209,7 @@ DETECTION_CONFIG = {
     }
 }
 
-# ======================== 钓鱼检测配置 (GTE 双模型) ========================
+# ======================== 钓鱼检测配�?(GTE 双模�? ========================
 PHISHING_DETECTION = {
     'mode': os.getenv('PHISHING_MODE', 'ensemble'),  # ensemble, original, chiphish
     'threshold': float(os.getenv('PHISHING_THRESHOLD', '0.5')),
@@ -218,10 +218,10 @@ PHISHING_DETECTION = {
     'w_chiphish': float(os.getenv('PHISHING_W_CHIPHISH', '0.3')),
     'max_length': int(os.getenv('PHISHING_MAX_LENGTH', '512')),
     'edu_gentle': os.getenv('PHISHING_EDU_GENTLE', 'true').lower() in ('1', 'true', 'yes'),
-    'allowlist_path': os.getenv('PHISHING_ALLOWLIST_PATH', None),  # 白名单文件路径
+    'allowlist_path': os.getenv('PHISHING_ALLOWLIST_PATH', None),  # 白名单文件路�?
 }
 
-# ======================== 任务队列配置 (可选) ========================
+# ======================== 任务队列配置 (可�? ========================
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']

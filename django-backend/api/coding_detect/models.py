@@ -84,6 +84,7 @@ class VulnerabilityResult:
     timestamp: datetime = field(default_factory=datetime.now)
     model_version: str = "VR-7B"
     inference_time: float = 0.0
+    input_tokens: int = 0  # 新增：输入tokens数量
     
     def to_dict(self) -> dict:
         """转换为字典"""
@@ -100,6 +101,7 @@ class VulnerabilityResult:
             'timestamp': self.timestamp.isoformat(),
             'model_version': self.model_version,
             'inference_time': self.inference_time,
+            'input_tokens': self.input_tokens,  # 新增字段
         }
 
 

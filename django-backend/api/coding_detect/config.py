@@ -52,26 +52,40 @@ TREE_SITTER_LANGUAGES: Dict[str, str] = {
 
 # ==================== 模型相关常量 ====================
 
-# VR 模型路径（4-bit量化版本）
-# 使用相对路径，从 api/coding_detect/config.py 到 django-backend/models/VR
-# ../../ 表示回到 django-backend 目录
-VULNLMMR_MODEL_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'models', 'VR')
+# VR 模型路径（使用本地文件路径）
+# 路径：django-backend/api/coding_detect/config.py -> ../../models/VR
+_current_dir = os.path.dirname(os.path.abspath(__file__))  # api/coding_detect
+_api_dir = os.path.dirname(_current_dir)  # api
+_backend_dir = os.path.dirname(_api_dir)  # django-backend
+
+# 构建VR模型路径（本地文件系统路径）
+VULNLMMR_MODEL_PATH = os.path.join(_backend_dir, 'models', 'VR')
+
+# 清理临时变量
+del _current_dir, _api_dir, _backend_dir
 
 # 模型类型标识
 MODEL_TYPE = "qwen"
 
-# 最大输入序列长度
-MAX_INPUT_LENGTH = 16000
+# 最大输入序列长度（优化：5000 tokens，平衡显存与准确率）
+MAX_INPUT_LENGTH = 5000
+
+# 代码智能截断阈值（tokens）- 触发智能截断的阈值
+CODE_TRUNCATE_THRESHOLD = 2000  # 超过2000 tokens触发截断
+
+# 截断目标tokens（保证准确率的前提下控制显存）
+TRUNCATE_TARGET_TOKENS = 4000  # 目标截断到4000 tokens
+TRUNCATE_MAX_TOKENS = 5000  # 最大允许5000 tokens（关键区域过多时可放宽）
 
 # 最大输出长度
 MAX_OUTPUT_LENGTH = 8192
 
-# 生成参数（优化速度）
+# 生成参数（优化：增加max_new_tokens确保JSON完整输出）
 GENERATION_CONFIG = {
     'temperature': 0.1,  # 降低温度，更确定性输出
     'top_p': 0.9,
     'top_k': 20,
-    'max_new_tokens': 256,  # 恢复到256，规则0已能提取安全隐患
+    'max_new_tokens': 256,  # 修复：从64增加到256，确保完整JSON输出
     'do_sample': False,  # 贪心解码，最快速度
     'repetition_penalty': 1.1,
     'use_cache': True,  # 启用KV缓存加速
@@ -83,7 +97,7 @@ QUANTIZATION_CONFIG = {
     'load_in_4bit': True,  # 使用4-bit NF4量化
     'bnb_4bit_use_double_quant': False,  # 关闭双重量化，提升速度
     'bnb_4bit_quant_type': 'nf4',
-    'bnb_4bit_compute_dtype': 'float16',
+    'bnb_4bit_compute_dtype': 'float16',  # RTX 4060 原生支持fp16，性能最佳
 }
 
 
@@ -115,6 +129,15 @@ DANGEROUS_FUNCTIONS: Dict[str, Set[str]] = {
         'input', 'raw_input',
         '__import__', 'importlib.import_module',
         'eval', 'exec',
+        # 漏洞利用代码模式：缓冲区操作
+        'struct.pack', 'p64', 'p32', 'p16', 'p8',
+        'payload +=', 'payload =',
+        'shellcode', 'nop',
+        # 漏洞利用：内存操作
+        'heap_base', 'stack_base', 'libc_base',
+        'rop_chain', 'gadget',
+        # 漏洞利用：网络请求
+        'dce.request', 'transport.connect',
     },
     'java': {
         'Runtime.exec', 'ProcessBuilder',

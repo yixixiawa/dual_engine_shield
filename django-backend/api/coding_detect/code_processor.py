@@ -102,136 +102,149 @@ class CodeProcessor:
     
     @staticmethod
     def smart_truncate_code(code: str, language: str, max_tokens: int = 4000) -> str:
-        """智能截断代码"""
-        lines = code.split('\n')
-        kept_lines = []
+        """智能截断代码（优化版：保证准确率+控制tokens）
         
+        策略：
+        1. 保留所有import语句（依赖信息）
+        2. 保留危险函数的完整上下文（前后5行）
+        3. 保留所有函数/类定义（代码结构）
+        4. 关键区域过多时采用分层采样（保证准确率同时压缩）
+        """
+        lines = code.split('\n')
+        
+        # 第1步：如果代码长度在限制内，直接返回
+        estimated_tokens = CodeProcessor.estimate_tokens(code)
+        if estimated_tokens <= max_tokens:
+            return code
+        
+        # 第2步：标记关键区域
         dangerous_patterns = DANGEROUS_FUNCTIONS.get(language.lower(), set())
         
-        safe_patterns = [
-            r'^\s*def\s+test_',
-            r'^\s*def\s+main\s*\(',
-            r'^\s*if\s+__name__\s*==',
-            r'^\s*def\s+help_',
-            r'^\s*def\s+print_',
-            r'^\s*def\s+log_',
-        ]
+        # 关键区域集合（保证不被采样）
+        critical_ranges = []  # [(start, end), ...]
+        dangerous_line_indices = []  # 危险函数行号
         
-        i = 0
-        while i < len(lines):
-            line = lines[i]
+        for i, line in enumerate(lines):
             stripped = line.strip()
             
-            # 保留import语句
-            if stripped.startswith('import ') or stripped.startswith('from '):
-                kept_lines.append(line)
-                i += 1
-                continue
-            
-            # 检查是否是函数定义
-            function_patterns = {
-                'python': [r'^\s*def\s+\w+', r'^\s*class\s+\w+'],
-                'c': [r'^\s*\w+\s+\w+\s*\(', r'^\s*void\s+', r'^\s*int\s+', r'^\s*static\s+'],
-                'cpp': [r'^\s*\w+\s+\w+\s*\(', r'^\s*class\s+'],
-                'java': [r'^\s*(public|private|protected)\s+\w+\s+\w+\s*\('],
-                'javascript': [r'^\s*function\s+\w+', r'^\s*const\s+\w+\s*=', r'^\s*class\s+'],
-            }
-            
-            patterns = function_patterns.get(language.lower(), [r'^\s*def\s+', r'^\s*function\s+'])
-            is_function = any(re.match(p, line) for p in patterns)
-            
-            if is_function:
-                function_start = i
-                function_end = i
-                has_dangerous = False
-                
-                for j in range(i, len(lines)):
-                    function_end = j
-                    if any(dangerous in lines[j] for dangerous in dangerous_patterns):
-                        has_dangerous = True
-                    
-                    if language.lower() == 'python':
-                        if j > i and lines[j].strip() and not lines[j].startswith(' ') and not lines[j].startswith('\t'):
-                            function_end = j - 1
-                            break
-                    else:
-                        if lines[j].strip() == '}':
-                            function_end = j
-                            break
-                
-                if has_dangerous:
-                    context_start = max(0, function_start - 20)
-                    context_end = min(len(lines), function_end + 21)
-                    
-                    if context_start > function_start:
-                        kept_lines.append(f'// ... {function_start - context_start} lines omitted ...')
-                    
-                    for k in range(context_start, context_end):
-                        kept_lines.append(lines[k])
-                    
-                    if context_end <= function_end + 20:
-                        kept_lines.append(f'// ... {function_end - context_end + 1} lines omitted ...')
-                    
-                    i = function_end + 1
-                    continue
-                else:
-                    kept_lines.append(line)
-                    
-                    if language.lower() == 'python':
-                        j = i + 1
-                        while j < len(lines):
-                            if lines[j].strip() and not lines[j].startswith(' ') and not lines[j].startswith('\t'):
-                                break
-                            j += 1
-                        if j > i + 2:
-                            kept_lines.append('    # [函数体截断 - 安全函数]')
-                        i = j
-                    else:
-                        j = i + 1
-                        brace_count = 0
-                        found_open = False
-                        while j < len(lines):
-                            if '{' in lines[j]:
-                                found_open = True
-                                brace_count += lines[j].count('{')
-                            if '}' in lines[j]:
-                                brace_count -= lines[j].count('}')
-                            if found_open and brace_count <= 0:
-                                break
-                            j += 1
-                        
-                        if j > i + 2:
-                            kept_lines.append('    /* [函数体截断 - 安全函数] */')
-                        i = j + 1
-                    continue
-            
-            # 非函数代码：检查是否包含危险调用
+            # 检测危险函数行
             if any(dangerous in line for dangerous in dangerous_patterns):
-                context_start = max(0, i - 10)
-                context_end = min(len(lines), i + 11)
-                
-                for k in range(context_start, context_end):
-                    kept_lines.append(lines[k])
-                
-                i = context_end
-                continue
+                dangerous_line_indices.append(i)
+                # 保留前后5行上下文（确保完整的漏洞上下文）
+                ctx_start = max(0, i - 5)
+                ctx_end = min(len(lines) - 1, i + 5)
+                critical_ranges.append((ctx_start, ctx_end))
+        
+        # 合并重叠的关键区域
+        if critical_ranges:
+            critical_ranges.sort()
+            merged_ranges = [critical_ranges[0]]
+            for start, end in critical_ranges[1:]:
+                if start <= merged_ranges[-1][1] + 1:
+                    merged_ranges[-1] = (merged_ranges[-1][0], max(merged_ranges[-1][1], end))
+                else:
+                    merged_ranges.append((start, end))
+            critical_ranges = merged_ranges
+        
+        # 计算关键区域占用的行数
+        critical_line_count = sum(end - start + 1 for start, end in critical_ranges)
+        
+        logger.info(f"智能截断分析: {len(lines)}行, {len(critical_ranges)}个关键区域, {len(dangerous_line_indices)}个危险函数, 关键行{critical_line_count}行")
+        
+        # 第3步：计算目标行数
+        target_lines = max(200, int(max_tokens * 0.85 // 3))  # 每行约3个token，留15%余量
+        
+        # 如果目标行数超过总行数，直接返回
+        if target_lines >= len(lines):
+            return code
+        
+        # 第4步：构建保留集合
+        kept_indices = set()
+        
+        # 4.1 保留所有import/from语句
+        import re
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if stripped.startswith('import ') or stripped.startswith('from '):
+                kept_indices.add(i)
+        
+        # 4.2 保留所有函数/类定义
+        for i, line in enumerate(lines):
+            if re.match(r'^\s*(def |class |async def )', line):
+                kept_indices.add(i)
+        
+        # 4.3 处理关键区域（分层采样策略）
+        if critical_line_count <= target_lines * 0.7:
+            # 关键区域不多，全部保留
+            for start, end in critical_ranges:
+                for idx in range(start, end + 1):
+                    kept_indices.add(idx)
+            logger.info(f"关键区域{critical_line_count}行 <= 目标{int(target_lines*0.7)}行，全部保留")
+        else:
+            # 关键区域过多，分层采样：保留前3个实例的全部上下文，其余采样
+            logger.info(f"关键区域{critical_line_count}行 > 目标{int(target_lines*0.7)}行，采用分层采样")
             
-            kept_lines.append(line)
-            i += 1
+            # 统计每个危险函数的上下文行数
+            danger_context_map = {}  # {danger_line_idx: (start, end)}
+            for danger_idx in dangerous_line_indices:
+                for start, end in critical_ranges:
+                    if start <= danger_idx <= end:
+                        danger_context_map[danger_idx] = (start, end)
+                        break
+            
+            # 前3个危险函数保留完整上下文
+            for i, danger_idx in enumerate(dangerous_line_indices[:3]):
+                if danger_idx in danger_context_map:
+                    start, end = danger_context_map[danger_idx]
+                    for idx in range(start, end + 1):
+                        kept_indices.add(idx)
+            
+            logger.info(f"保留前{min(3, len(dangerous_line_indices))}个危险函数的完整上下文")
+            
+            # 其余危险函数只保留危险函数本身+前后2行
+            for danger_idx in dangerous_line_indices[3:]:
+                ctx_start = max(0, danger_idx - 2)
+                ctx_end = min(len(lines) - 1, danger_idx + 2)
+                for idx in range(ctx_start, ctx_end + 1):
+                    kept_indices.add(idx)
+            
+            logger.info(f"其余{len(dangerous_line_indices)-3}个危险函数保留精简上下文(前后2行)")
+        
+        # 4.4 如果仍然超过目标，警告但保留（准确率优先）
+        if len(kept_indices) > target_lines:
+            logger.warning(f"关键区域过多({len(kept_indices)}行 > 目标{target_lines}行)，为保证准确率保留全部关键代码")
+            logger.warning(f"实际tokens可能超过{max_tokens}，但检测准确率不受影响")
+        else:
+            # 4.5 均匀采样补充剩余位置
+            remaining_slots = target_lines - len(kept_indices)
+            other_indices = [i for i in range(len(lines)) if i not in kept_indices]
+            
+            if other_indices and remaining_slots > 0:
+                step = max(1, len(other_indices) // remaining_slots)
+                sampled = other_indices[::step][:remaining_slots]
+                kept_indices.update(sampled)
+        
+        # 第5步：按原始顺序重建代码
+        kept_indices_sorted = sorted(kept_indices)
+        kept_lines = []
+        prev_idx = -1
+        
+        for idx in kept_indices_sorted:
+            # 如果有跳过很多行，添加省略标记
+            if prev_idx >= 0 and idx - prev_idx > 2:
+                kept_lines.append(f'\n# ... [{idx - prev_idx - 1} lines omitted] ...\n')
+            kept_lines.append(lines[idx])
+            prev_idx = idx
         
         truncated_code = '\n'.join(kept_lines)
         
-        if CodeProcessor.estimate_tokens(truncated_code) > max_tokens:
-            total_lines = len(kept_lines)
-            front_lines = int(total_lines * 0.7)
-            back_lines = total_lines - front_lines
-            
-            truncated_lines = kept_lines[:front_lines]
-            truncated_lines.append(f'\n// ... {back_lines} lines truncated for analysis ...\n')
-            truncated_lines.extend(kept_lines[-back_lines:])
-            
-            truncated_code = '\n'.join(truncated_lines)
+        # 验证：确保截断后tokens减少
+        truncated_tokens = CodeProcessor.estimate_tokens(truncated_code)
+        if truncated_tokens >= estimated_tokens:
+            logger.warning(f"智能截断失败({estimated_tokens} -> {truncated_tokens}tokens)，返回原始代码")
+            return code
         
+        logger.info(f"✅ 智能截断成功: {len(lines)}行/{estimated_tokens}tokens -> {len(kept_lines)}行/{truncated_tokens}tokens")
         return truncated_code
     
     @staticmethod

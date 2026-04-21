@@ -48,7 +48,8 @@ class VulnScanner:
         """
         self.detector = VulnLLMRDetector(
             model_path=model_path,
-            use_quantization=use_quantization
+            use_quantization=use_quantization,
+            auto_unload_timeout=0  # 禁用自动卸载，模型加载后常驻内存
         )
         self.extractor_factory = get_extractor_factory()
         self.max_workers = max_workers

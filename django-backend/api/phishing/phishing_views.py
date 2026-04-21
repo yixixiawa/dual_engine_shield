@@ -4,6 +4,7 @@
 RESTful API 端点
 """
 import logging
+import time
 from pathlib import Path
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -11,6 +12,9 @@ from rest_framework import status
 from django.conf import settings
 
 from .phishing_service import PhishingAnalysisService
+from ..ipinfo.domain_resolver import get_resolver
+from ..db import IPInfoDatabase
+from ..models import GeoPhishingLocation, DetectionLog, PhishingDetection
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +73,9 @@ class PhishingDetectView(APIView):
 
     def post(self, request):
         """执行单个 URL 钓鱼检测"""
+        task_id = None
+        start_time = time.time()
+        
         try:
             data = request.data
             url = data.get('url', '').strip()
@@ -84,6 +91,17 @@ class PhishingDetectView(APIView):
             explain = data.get('explain', False)
             explain_top_k = data.get('explain_top_k', 20)
 
+            # ==================== 创建检测日志记录 ====================
+            logger.info(f"📝 创建检测日志: {url}")
+            detection_log = DetectionLog.objects.create(
+                detection_type='phishing',
+                status='processing',
+                input_data=url
+            )
+            task_id = detection_log.id
+            logger.info(f"✅ 创建检测日志成功，任务ID: {task_id}")
+
+            # ==================== 执行钓鱼检测 ====================
             service = get_phishing_service()
             result = service.analyze(
                 url=url,
@@ -93,12 +111,60 @@ class PhishingDetectView(APIView):
                 explain_top_k=explain_top_k,
             )
 
-            return Response(result, status=status.HTTP_200_OK)
+            # ==================== 更新检测日志 ====================
+            processing_time = time.time() - start_time
+            
+            # 确定威胁等级
+            is_phishing = result.get('is_phishing', False)
+            score = result.get('score', 0)
+            
+            if is_phishing:
+                threat_level = 'phishing'
+            elif score > 0.3:
+                threat_level = 'suspicious'
+            else:
+                threat_level = 'safe'
+            
+            # 更新日志状态为已完成
+            detection_log.status = 'completed'
+            detection_log.result = result
+            detection_log.processing_time = processing_time
+            detection_log.save()
+            
+            logger.info(f"✅ 检测日志已更新，任务ID: {task_id}，状态: completed")
+            
+            # 在响应中添加任务ID和其他元数据
+            response_data = {
+                **result,
+                "task_id": task_id,
+                "task_status": "completed",
+                "processing_time_ms": round(processing_time * 1000, 2)
+            }
+            
+            return Response(response_data, status=status.HTTP_200_OK)
 
         except Exception as e:
             logger.error(f"钓鱼检测失败: {str(e)}", exc_info=True)
+            
+            # ==================== 记录错误到日志 ====================
+            if task_id:
+                try:
+                    processing_time = time.time() - start_time
+                    detection_log = DetectionLog.objects.get(id=task_id)
+                    detection_log.status = 'failed'
+                    detection_log.error_message = str(e)
+                    detection_log.processing_time = processing_time
+                    detection_log.save()
+                    logger.info(f"✅ 检测日志已更新为失败状态，任务ID: {task_id}")
+                except Exception as log_e:
+                    logger.error(f"❌ 更新检测日志失败: {str(log_e)}")
+            
             return Response(
-                {"error": f"Detection failed: {str(e)}"},
+                {
+                    "error": f"Detection failed: {str(e)}",
+                    "task_id": task_id,
+                    "task_status": "failed"
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -118,6 +184,9 @@ class PhishingBatchDetectView(APIView):
 
     def post(self, request):
         """执行批量 URL 钓鱼检测"""
+        task_id = None
+        start_time = time.time()
+        
         try:
             data = request.data
             urls = data.get('urls', [])
@@ -135,15 +204,62 @@ class PhishingBatchDetectView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            # ==================== 创建检测日志记录 ====================
+            logger.info(f"📝 创建批量检测日志: {len(urls)} 个URL")
+            detection_log = DetectionLog.objects.create(
+                detection_type='phishing',
+                status='processing',
+                input_data=f"Batch detection: {len(urls)} URLs"
+            )
+            task_id = detection_log.id
+            logger.info(f"✅ 创建检测日志成功，任务ID: {task_id}")
+
+            # ==================== 执行批量钓鱼检测 ====================
             service = get_phishing_service()
             result = service.batch_analyze(urls, html_contents)
 
-            return Response(result, status=status.HTTP_200_OK)
+            # ==================== 更新检测日志 ====================
+            processing_time = time.time() - start_time
+            
+            detection_log.status = 'completed'
+            detection_log.result = result
+            detection_log.processing_time = processing_time
+            detection_log.save()
+            
+            logger.info(f"✅ 检测日志已更新，任务ID: {task_id}，状态: completed")
+            
+            # 在响应中添加任务ID和其他元数据
+            response_data = {
+                **result,
+                "task_id": task_id,
+                "task_status": "completed",
+                "processing_time_ms": round(processing_time * 1000, 2)
+            }
+            
+            return Response(response_data, status=status.HTTP_200_OK)
 
         except Exception as e:
             logger.error(f"批量钓鱼检测失败: {str(e)}", exc_info=True)
+            
+            # ==================== 记录错误到日志 ====================
+            if task_id:
+                try:
+                    processing_time = time.time() - start_time
+                    detection_log = DetectionLog.objects.get(id=task_id)
+                    detection_log.status = 'failed'
+                    detection_log.error_message = str(e)
+                    detection_log.processing_time = processing_time
+                    detection_log.save()
+                    logger.info(f"✅ 检测日志已更新为失败状态，任务ID: {task_id}")
+                except Exception as log_e:
+                    logger.error(f"❌ 更新检测日志失败: {str(log_e)}")
+            
             return Response(
-                {"error": f"Batch detection failed: {str(e)}"},
+                {
+                    "error": f"Batch detection failed: {str(e)}",
+                    "task_id": task_id,
+                    "task_status": "failed"
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
@@ -490,5 +606,473 @@ class PhishingModelsPerformanceView(APIView):
             logger.error(f"获取模型性能数据失败: {str(e)}")
             return Response(
                 {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class PhishingAndGeoTrackView(APIView):
+    """
+    钓鱼检测 + 地理位置追踪 - 集成视图
+    
+    完整流程：
+    1. 执行钓鱼检测
+    2. 如果检测为钓鱼 (is_phishing=True)，则自动：
+       - DNS 解析域名获取 IP
+       - 查询 IP 地理信息
+       - 保存到 ipinfo 数据库
+       - 同步到 GeoPhishing 数据库
+    3. 返回完整的检测+地理位置结果
+    
+    POST /api/detect/phishing-track/
+    {
+        "url": "https://example.com",
+        "resolve_all": false,          # 是否解析所有 IP
+        "use_cache": true,             # 是否使用缓存
+        "sync_to_geo": true,           # 是否同步到地理位置数据库
+        "explain": false,              # 是否返回 Token 级归因
+        "explain_top_k": 20            # 返回的 Top-K token 数量
+    }
+    """
+
+    def post(self, request):
+        """执行钓鱼检测并追踪地理位置"""
+        task_id = None
+        start_time = time.time()
+        
+        try:
+            data = request.data
+            url = data.get('url', '').strip()
+
+            if not url:
+                return Response(
+                    {"error": "url 是必需的"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # ==================== 创建检测日志记录 ====================
+            logger.info(f"📝 创建检测日志: {url}")
+            detection_log = DetectionLog.objects.create(
+                detection_type='phishing',
+                status='processing',
+                input_data=url
+            )
+            task_id = detection_log.id
+            logger.info(f"✅ 创建检测日志成功，任务ID: {task_id}")
+
+            resolve_all = data.get('resolve_all', False)
+            use_cache = data.get('use_cache', True)
+            sync_to_geo = data.get('sync_to_geo', True)
+            explain = data.get('explain', False)
+            explain_top_k = data.get('explain_top_k', 20)
+
+            # ==================== 步骤 1: 钓鱼检测 ====================
+            logger.info(f"🔍 [步骤1] 开始钓鱼检测: {url}")
+            service = get_phishing_service()
+            phishing_result = service.analyze(
+                url=url,
+                explain=explain,
+                explain_top_k=explain_top_k,
+            )
+
+            # 判断是否为钓鱼
+            is_phishing = phishing_result.get("is_phishing", False)
+            
+            # 初始化响应结果
+            response_data = {
+                "status": "success",
+                "task_id": task_id,
+                "phishing_detection": phishing_result,
+                "is_phishing": is_phishing,
+                "domain_resolution": None,
+                "ipinfo": None,
+                "geolocation_sync": None,
+                "message": "检测完成"
+            }
+
+            # 如果不是钓鱼，直接返回
+            if not is_phishing:
+                logger.info(f"✅ URL 不是钓鱼网站: {url}")
+                response_data["message"] = "URL 判定为安全"
+                return Response(response_data, status=status.HTTP_200_OK)
+
+            logger.info(f"⚠️ URL 判定为钓鱼网站，开始追踪地理位置...")
+
+            # ==================== 步骤 2: DNS 解析 ====================
+            logger.info(f"🔍 [步骤2] 开始 DNS 解析...")
+            try:
+                resolver = get_resolver()
+                
+                if resolve_all:
+                    ip_list = resolver.get_all_ips_for_domain(url)
+                else:
+                    ip_address = resolver.resolve_domain(url)
+                    ip_list = [ip_address] if ip_address else []
+
+                if not ip_list or not ip_list[0]:
+                    logger.warning(f"⚠️ DNS 解析失败: {url}")
+                    response_data["message"] = "DNS 解析失败，仅返回钓鱼检测结果"
+                    return Response(response_data, status=status.HTTP_200_OK)
+
+                logger.info(f"✅ DNS 解析成功: {url} -> {ip_list}")
+                
+                domain = resolver.extract_domain(url)
+                response_data["domain_resolution"] = {
+                    "domain": domain,
+                    "ip_addresses": ip_list,
+                    "total_ips": len(ip_list)
+                }
+
+            except Exception as e:
+                logger.error(f"❌ DNS 解析异常: {str(e)}")
+                response_data["message"] = f"DNS 解析异常: {str(e)}"
+                return Response(response_data, status=status.HTTP_200_OK)
+
+            # ==================== 步骤 3: IP 地理信息查询 ====================
+            logger.info(f"🔍 [步骤3] 查询 IP 地理信息...")
+            try:
+                db = IPInfoDatabase()
+                
+                ipinfo_results = []
+                threat_level = "phishing"  # 因为是钓鱼网站，威胁等级为 phishing
+                
+                for ip_address in ip_list:
+                    try:
+                        # 先检查缓存
+                        if use_cache:
+                            cached_info = db.get_ip_info(ip_address)
+                            if cached_info:
+                                logger.info(f"✅ 从缓存获取 IP 信息: {ip_address}")
+                                ipinfo_results.append({
+                                    "ip": ip_address,
+                                    "source": "cache",
+                                    "data": cached_info,
+                                    "database_id": None
+                                })
+                                continue
+
+                        # 调用 IPinfo API
+                        logger.info(f"🌐 调用 IPinfo API 查询: {ip_address}")
+                        ip_data, error = db.query_ipinfo_api(ip_address)
+                        
+                        if ip_data:
+                            # 保存到数据库（已在 query_ipinfo_api 中自动保存）
+                            logger.info(f"✅ IP 信息已保存到数据库: {ip_address}")
+                            ipinfo_results.append({
+                                "ip": ip_address,
+                                "source": "api",
+                                "data": ip_data,
+                                "database_id": ip_data.get("id")
+                            })
+                        else:
+                            logger.warning(f"⚠️ 无法获取 IP 信息: {ip_address} - {error}")
+                            ipinfo_results.append({
+                                "ip": ip_address,
+                                "status": "failed",
+                                "error": error or "未知错误"
+                            })
+
+                    except Exception as e:
+                        logger.error(f"❌ 查询 IP {ip_address} 异常: {str(e)}")
+                        ipinfo_results.append({
+                            "ip": ip_address,
+                            "status": "failed",
+                            "error": str(e)
+                        })
+
+                response_data["ipinfo"] = ipinfo_results
+
+            except Exception as e:
+                logger.error(f"❌ IP 查询异常: {str(e)}")
+                response_data["message"] = f"IP 查询异常: {str(e)}"
+                return Response(response_data, status=status.HTTP_200_OK)
+
+            # ==================== 步骤 4: 同步到 GeoPhishing 数据库 ====================
+            if sync_to_geo:
+                logger.info(f"🔍 [步骤4] 同步到 GeoPhishing 数据库...")
+                try:
+                    geo_sync_results = []
+                    
+                    for ipinfo in ipinfo_results:
+                        if ipinfo.get("status") == "failed":
+                            continue
+
+                        ip_address = ipinfo.get("ip")
+                        ip_data = ipinfo.get("data", {})
+
+                        try:
+                            # 解析经纬度
+                            loc_str = ip_data.get('loc', '0,0')
+                            loc_parts = loc_str.split(',')
+                            latitude = float(loc_parts[0]) if len(loc_parts) > 0 else 0.0
+                            longitude = float(loc_parts[1]) if len(loc_parts) > 1 else 0.0
+
+                            # 创建或更新地理位置记录
+                            location, created = GeoPhishingLocation.objects.update_or_create(
+                                ip_address=ip_address,
+                                domain=domain or '',
+                                url=url or '',
+                                defaults={
+                                    'country': ip_data.get('country', 'Unknown'),
+                                    'region': ip_data.get('region'),
+                                    'city': ip_data.get('city'),
+                                    'latitude': latitude,
+                                    'longitude': longitude,
+                                    'postal_code': ip_data.get('postal'),
+                                    'timezone': ip_data.get('timezone'),
+                                    'org': ip_data.get('org'),
+                                    'asn': ip_data.get('asn'),
+                                    'threat_level': threat_level,
+                                    'is_phishing': True,
+                                    'raw_data': ip_data,
+                                    'source_type': 'phishing_detection',
+                                }
+                            )
+
+                            # 更新风险评分
+                            location.update_risk_score()
+                            location.save()
+
+                            logger.info(f"✅ 地理位置已{'创建' if created else '更新'}: {ip_address}")
+                            
+                            geo_sync_results.append({
+                                "ip": ip_address,
+                                "status": "success",
+                                "created": created,
+                                "geolocation_id": location.id,
+                                "location": {
+                                    "country": location.country,
+                                    "city": location.city,
+                                    "latitude": location.latitude,
+                                    "longitude": location.longitude,
+                                    "risk_score": location.risk_score
+                                }
+                            })
+
+                        except Exception as e:
+                            logger.error(f"❌ 同步地理位置失败 {ip_address}: {str(e)}")
+                            geo_sync_results.append({
+                                "ip": ip_address,
+                                "status": "failed",
+                                "error": str(e)
+                            })
+
+                    response_data["geolocation_sync"] = geo_sync_results
+                    logger.info(f"✅ 地理位置同步完成: {len(geo_sync_results)} 条记录")
+
+                except Exception as e:
+                    logger.error(f"❌ GeoPhishing 同步异常: {str(e)}")
+                    response_data["message"] = f"GeoPhishing 同步异常: {str(e)}"
+
+            # ==================== 完成并返回结果 ====================
+            logger.info(f"✅ 完整流程执行完成")
+            response_data["message"] = "钓鱼检测+地理位置追踪完成"
+            
+            # ==================== 更新检测日志为完成 ====================
+            try:
+                processing_time = time.time() - start_time
+                detection_log = DetectionLog.objects.get(id=task_id)
+                detection_log.status = 'completed'
+                detection_log.result = response_data
+                detection_log.processing_time = processing_time
+                detection_log.save()
+                logger.info(f"✅ 检测日志已更新，任务ID: {task_id}，状态: completed")
+                
+                response_data["task_status"] = "completed"
+                response_data["processing_time_ms"] = round(processing_time * 1000, 2)
+            except Exception as log_e:
+                logger.error(f"❌ 更新检测日志失败: {str(log_e)}")
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"❌ 集成流程异常: {str(e)}", exc_info=True)
+            
+            # ==================== 记录错误到日志 ====================
+            if task_id:
+                try:
+                    processing_time = time.time() - start_time
+                    detection_log = DetectionLog.objects.get(id=task_id)
+                    detection_log.status = 'failed'
+                    detection_log.error_message = str(e)
+                    detection_log.processing_time = processing_time
+                    detection_log.save()
+                    logger.info(f"✅ 检测日志已更新为失败状态，任务ID: {task_id}")
+                except Exception as log_e:
+                    logger.error(f"❌ 更新检测日志失败: {str(log_e)}")
+            
+            return Response(
+                {
+                    "error": f"Integration flow failed: {str(e)}",
+                    "status": "error",
+                    "task_id": task_id,
+                    "task_status": "failed"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class PhishingDetectionTaskView(APIView):
+    """
+    查询钓鱼检测任务状态和结果
+    
+    GET /api/detect/fish-task/<task_id>/
+    
+    返回任务的实时状态、进度和检测结果
+    """
+
+    def get(self, request, task_id=None):
+        """获取检测任务状态"""
+        if not task_id:
+            task_id = request.query_params.get('task_id')
+        
+        if not task_id:
+            return Response(
+                {"error": "task_id 是必需的"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # 查询检测日志
+            detection_log = DetectionLog.objects.get(id=task_id)
+            
+            response_data = {
+                "status": "success",
+                "task_id": detection_log.id,
+                "task_status": detection_log.status,
+                "detection_type": detection_log.detection_type,
+                "input_data": detection_log.input_data,
+                "result": detection_log.result,
+                "processing_time_ms": round(detection_log.processing_time * 1000, 2) if detection_log.processing_time else None,
+                "error_message": detection_log.error_message,
+                "created_at": detection_log.created_at.isoformat(),
+                "updated_at": detection_log.updated_at.isoformat(),
+            }
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+        
+        except DetectionLog.DoesNotExist:
+            return Response(
+                {
+                    "error": f"任务不存在: {task_id}",
+                    "status": "error"
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        except Exception as e:
+            logger.error(f"查询任务失败: {str(e)}")
+            return Response(
+                {
+                    "error": f"Query failed: {str(e)}",
+                    "status": "error"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def delete(self, request, task_id=None):
+        """删除检测任务（清除记录）"""
+        if not task_id:
+            task_id = request.query_params.get('task_id')
+        
+        if not task_id:
+            return Response(
+                {"error": "task_id 是必需的"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            detection_log = DetectionLog.objects.get(id=task_id)
+            detection_log.delete()
+            
+            return Response(
+                {
+                    "status": "success",
+                    "message": f"任务已删除: {task_id}"
+                },
+                status=status.HTTP_200_OK
+            )
+        
+        except DetectionLog.DoesNotExist:
+            return Response(
+                {
+                    "error": f"任务不存在: {task_id}",
+                    "status": "error"
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        except Exception as e:
+            logger.error(f"删除任务失败: {str(e)}")
+            return Response(
+                {
+                    "error": f"Delete failed: {str(e)}",
+                    "status": "error"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class PhishingDetectionTaskListView(APIView):
+    """
+    查询钓鱼检测任务列表
+    
+    GET /api/detect/fish-tasks/
+    
+    查询参数：
+    - status: 任务状态（pending/processing/completed/failed）
+    - limit: 返回的记录数量（默认 50）
+    - offset: 分页偏移（默认 0）
+    """
+
+    def get(self, request):
+        """获取检测任务列表"""
+        try:
+            status_filter = request.query_params.get('status')
+            limit = int(request.query_params.get('limit', 50))
+            offset = int(request.query_params.get('offset', 0))
+            
+            # 过滤钓鱼检测日志
+            queryset = DetectionLog.objects.filter(detection_type='phishing')
+            
+            if status_filter:
+                queryset = queryset.filter(status=status_filter)
+            
+            # 获取总数
+            total_count = queryset.count()
+            
+            # 分页
+            tasks = queryset.order_by('-created_at')[offset:offset+limit]
+            
+            task_list = []
+            for task in tasks:
+                task_list.append({
+                    "task_id": task.id,
+                    "status": task.status,
+                    "input_data": task.input_data,
+                    "processing_time_ms": round(task.processing_time * 1000, 2) if task.processing_time else None,
+                    "error_message": task.error_message,
+                    "created_at": task.created_at.isoformat(),
+                    "updated_at": task.updated_at.isoformat(),
+                })
+            
+            return Response(
+                {
+                    "status": "success",
+                    "total_count": total_count,
+                    "limit": limit,
+                    "offset": offset,
+                    "returned_count": len(task_list),
+                    "tasks": task_list
+                },
+                status=status.HTTP_200_OK
+            )
+        
+        except Exception as e:
+            logger.error(f"查询任务列表失败: {str(e)}")
+            return Response(
+                {
+                    "error": f"Query failed: {str(e)}",
+                    "status": "error"
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

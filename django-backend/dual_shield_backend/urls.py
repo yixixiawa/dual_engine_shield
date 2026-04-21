@@ -42,6 +42,12 @@ urlpatterns = [
     path('api/detect/fish/', phishing_views.PhishingDetectView.as_view(), name='fish-detect'),
     path('api/detect/batch-fish/', phishing_views.PhishingBatchDetectView.as_view(), name='batch-fish-detect'),
     path('api/detect/fish-config/', phishing_views.PhishingConfigView.as_view(), name='fish-config'),
+    path('api/detect/phishing-track/', phishing_views.PhishingAndGeoTrackView.as_view(), name='phishing-track'),
+    
+    # 检测任务查询 API
+    path('api/detect/fish-task/', phishing_views.PhishingDetectionTaskView.as_view(), name='fish-task-query'),
+    path('api/detect/fish-task/<int:task_id>/', phishing_views.PhishingDetectionTaskView.as_view(), name='fish-task-detail'),
+    path('api/detect/fish-tasks/', phishing_views.PhishingDetectionTaskListView.as_view(), name='fish-tasks-list'),
 
     # IP 地理信息查询 API
     path('api/ipinfo/query/', ipinfo_views.IPInfoQueryView.as_view(), name='ipinfo-query'),

@@ -106,12 +106,18 @@ class CodeVulnerabilityDetectView(views.APIView):
             
             logger.info(f"✅ 代码检测完成: 发现 {len(vulnerabilities)} 个漏洞 ({inference_time:.2f}s)")
             
+            # 提取 input_tokens (如果有)
+            input_tokens = 0
+            if vulnerabilities and isinstance(vulnerabilities[0], dict):
+                input_tokens = vulnerabilities[0].get('input_tokens', 0)
+            
             return Response(
                 {
                     'is_vulnerable': len(vulnerabilities) > 0,
                     'vulnerabilities': vulnerabilities,
                     'total_count': len(vulnerabilities),
                     'inference_time': round(inference_time, 2),
+                    'input_tokens': input_tokens,
                     'language': language
                 },
                 status=status.HTTP_200_OK
@@ -126,9 +132,29 @@ class CodeVulnerabilityDetectView(views.APIView):
     
     @staticmethod
     def _format_detector_result(result):
-        """格式化检测器结果"""
+        """格式化检测器结果，支持VulnerabilityResult对象"""
         if result is None:
             return []
+        
+        # 如果是 VulnerabilityResult 对象，转换为字典列表
+        if hasattr(result, 'to_dict'):
+            # 单个结果对象
+            result_dict = result.to_dict()
+            # 提取漏洞信息
+            return [{
+                'is_vulnerable': result_dict['is_vulnerable'],
+                'cwe_id': result_dict['cwe_id'],
+                'cwe_name': result_dict['cwe_name'],
+                'vulnerability_type': result_dict['cwe_name'],
+                'severity': result_dict['severity'],
+                'confidence': result_dict['confidence'],
+                'description': result_dict['explanation'],
+                'remediation': result_dict['fix_suggestion'],
+                'line_number': 0,
+                'inference_time': result_dict['inference_time'],
+                'input_tokens': result_dict['input_tokens'],
+            }]
+        
         if isinstance(result, dict) and 'vulnerabilities' in result:
             return result['vulnerabilities']
         if isinstance(result, list):
