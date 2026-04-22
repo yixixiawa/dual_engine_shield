@@ -5,7 +5,7 @@
                 <div class="engine-dot" :class="`dot-${color}`"></div>
                 <h3>{{ title }}</h3>
             </div>
-            <span class="engine-score">{{ (score * 100).toFixed(1) }}%</span>
+            <span class="engine-score">{{ (score * 100).toFixed(2) }}%</span>
         </div>
         <p class="engine-desc">{{ description }}</p>
     </el-card>

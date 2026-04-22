@@ -52,7 +52,47 @@ const detailDialogVisible = ref(false)
 const selectedUrl = ref<GeoPhishingLocationEntity | null>(null)
 
 const globeLoading = earthFeature.locationsLoading
-const ipDataList = ref<GeoPhishingLocationEntity[]>([])
+const ipDataList = ref<GeoPhishingLocationEntity[]>([
+  {
+    id: 19,
+    ip_address: "111.119.240.8",
+    domain: "yixixiawa.xyz",
+    country: "SG",
+    city: "Singapore",
+    latitude: 1.2897,
+    longitude: 103.8501,
+    threat_level: "phishing",
+    is_phishing: true,
+    risk_score: 99.73,
+    last_seen: "2026-04-22T18:13:04.831963+08:00"
+  },
+  {
+    id: 18,
+    ip_address: "59.111.160.244",
+    domain: "163.com",
+    country: "CN",
+    city: "Shanghai",
+    latitude: 31.2222,
+    longitude: 121.4581,
+    threat_level: "phishing",
+    is_phishing: true,
+    risk_score: 91.85,
+    last_seen: "2026-04-22T18:13:03.063350+08:00"
+  },
+  {
+    id: 20,
+    ip_address: "203.205.254.157",
+    domain: "qq.com",
+    country: "HK",
+    city: "Sham Shui Po",
+    latitude: 22.3302,
+    longitude: 114.1595,
+    threat_level: "phishing",
+    is_phishing: true,
+    risk_score: 74.17,
+    last_seen: "2026-04-22T18:13:06.590910+08:00"
+  }
+])
 
 const phishingUrlsCount = ref(0)
 const detectedCount = ref(0)
@@ -114,6 +154,8 @@ const getRiskTypeByScore = (score: number) => {
 }
 
 const updateStatistics = (locations: GeoPhishingLocationEntity[], total: number) => {
+    console.log('updateStatistics locations:', locations)
+    console.log('updateStatistics total:', total)
     ipDataList.value = locations
     detectedCount.value = total
     phishingUrlsCount.value = locations.filter((item) => item.is_phishing).length
@@ -152,12 +194,11 @@ const loadPhysicalAddresses = async () => {
             page: 1,
             page_size: 500
         })
+        console.log('loadPhysicalAddresses result:', result)
         updateStatistics(result.data, result.total)
         
-        // 如果地球模型已经初始化，重新应用所有点
-        if (globeInitialized.value) {
-            earthFeature.setBaseIPPoints(result.data)
-        }
+        // 应用所有点
+        earthFeature.setBaseIPPoints(result.data)
     } catch (error) {
         console.error('加载钓鱼 IP 数据失败:', error)
         ElMessage.error('加载钓鱼 IP 数据失败')
@@ -219,6 +260,7 @@ const runHighlightTestCase = () => {
 }
 
 const filteredPhishingUrls = computed(() => {
+    console.log('ipDataList.value:', ipDataList.value)
     if (!urlSearchKeyword.value) return ipDataList.value
     const keyword = urlSearchKeyword.value.toLowerCase()
     return ipDataList.value.filter(
@@ -232,13 +274,17 @@ const filteredPhishingUrls = computed(() => {
 const globeInitialized = ref(false)
 
 onMounted(async () => {
-    // 先获取数据，再初始化地球模型
-    await loadPhysicalAddresses()
-    // 数据获取完成后初始化地球模型
+    // 每次挂载时都重新初始化地球模型
+    globeInitialized.value = false
+    
+    // 先初始化地球模型
     if (!globeInitialized.value) {
         earthFeature.initChart(GLOBE_CONTAINER_ID)
         globeInitialized.value = true
     }
+    
+    // 然后获取数据
+    await loadPhysicalAddresses()
 })
 
 watch(detailDialogVisible, (visible) => {

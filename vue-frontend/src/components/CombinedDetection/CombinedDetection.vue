@@ -310,7 +310,7 @@ const startDetection = async () => {
         updateStep('vuln', 'processing', 60, '扫描中...')
         
         // 调用综合检测API
-        const response = await apiCall('/api/detect/comprehensive/', 'POST', { url: url.value })
+        const response = await apiCall('/detect/comprehensive/', 'POST', { url: url.value })
         
         result.value = response
         reportData.value = response

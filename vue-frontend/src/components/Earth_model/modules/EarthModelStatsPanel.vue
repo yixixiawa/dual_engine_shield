@@ -26,7 +26,7 @@
             <el-col :xs="24" :sm="12" :md="6">
                 <el-statistic title="平均风险分" :value="stats.avgRiskScore" suffix="分" size="large">
                     <template #prefix>
-                        <el-icon style="color: #E6A23C"><Timer /></el-icon>
+                        <el-icon style="color: #E6A23C"><Check /></el-icon>
                     </template>
                 </el-statistic>
             </el-col>
@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { Warning, Search, Timer } from '@element-plus/icons-vue'
+import { Warning, Search, Check } from '@element-plus/icons-vue'
 
 const modeOptions = [
     { label: '3D 地球模型', value: '3d' },

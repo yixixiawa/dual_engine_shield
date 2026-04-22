@@ -44,10 +44,4 @@ class ApiConfig(AppConfig):
             except Exception as e:
                 logger.error(f"[ERROR] Database migration failed: {str(e)} (数据库迁移失败)")
         
-        # 初始化 IPinfo 数据库
-        try:
-            from .db import initialize_ipinfo_db
-            initialize_ipinfo_db()
-            logger.info("[OK] IPinfo database initialized (IPinfo 数据库已初始化)")
-        except Exception as e:
-            logger.error(f"[ERROR] IPinfo database initialization failed: {str(e)} (IPinfo 数据库初始化失败)")
+

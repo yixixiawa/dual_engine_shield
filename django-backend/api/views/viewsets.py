@@ -36,7 +36,6 @@ class DetectionLogViewSet(viewsets.ModelViewSet):
     
     queryset = DetectionLog.objects.all()
     serializer_class = DetectionLogSerializer
-    pagination_class = StandardResultsSetPagination
     
     @action(detail=False, methods=['get'])
     def today(self, request):

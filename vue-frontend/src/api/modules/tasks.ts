@@ -1,9 +1,10 @@
-import apiCall from "../client";
+import { apiCall } from "../client";
 
 /**
  * 任务接口
  */
 export interface Task {
+    id: number;
     task_id: number;
     status: string;
     input_data: string;
@@ -17,10 +18,10 @@ export interface Task {
  * 任务列表响应
  */
 export interface TaskListResponse {
-    status: string;
-    total: number;
-    returned_count: number;
-    tasks: Task[];
+    count: number
+    next: string | null
+    previous: string | null
+    results: Task[]
 }
 
 /**
@@ -46,17 +47,20 @@ export interface TaskDetailResponse {
 export async function getTaskList(params?: {
     page?: number;
     limit?: number;
+    page_size?: number;
     type?: string;
     status?: string;
 }): Promise<TaskListResponse> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    // 优先使用page_size参数，兼容limit参数
+    const pageSize = params?.page_size || params?.limit;
+    if (pageSize) queryParams.append('page_size', pageSize.toString());
     if (params?.type) queryParams.append('type', params.type);
     if (params?.status) queryParams.append('status', params.status);
 
     const queryString = queryParams.toString();
-    const url = `/api/detect/fish-tasks/${queryString ? `?${queryString}` : ''}`;
+    const url = `/detection-logs/${queryString ? `?${queryString}` : ''}`;
 
     return await apiCall(url, 'GET');
 }
@@ -68,7 +72,7 @@ export async function getTaskList(params?: {
  * @returns 任务详情
  */
 export async function getTaskDetail(taskId: number): Promise<TaskDetailResponse> {
-    return await apiCall(`/api/detect/fish-task/${taskId}/`, 'GET');
+    return await apiCall(`/detect/fish-task/${taskId}/`, 'GET');
 }
 
 /**
@@ -81,5 +85,5 @@ export async function deleteTask(taskId: number): Promise<{
     status: string;
     message: string;
 }> {
-    return await apiCall(`/api/detect/fish-task/${taskId}/`, 'DELETE');
+    return await apiCall(`/detect/fish-task/${taskId}/`, 'DELETE');
 }

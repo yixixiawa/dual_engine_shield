@@ -52,7 +52,7 @@ autoRoutes.sort((a, b) => {
 const routes: RouteRecordRaw[] = [
     {
         path: '/',
-        redirect: '/earth_model'
+        redirect: autoRoutes.length > 0 ? autoRoutes[0].path : '/combineddetection'
     },
     ...autoRoutes,
     // ✅ 添加 404 路由

@@ -83,6 +83,12 @@
                 </template>
             </el-table-column>
 
+            <el-table-column prop="id" label="ID" width="80" sortable>
+                <template #default="{ row }">
+                    <span>{{ row.id || '-' }}</span>
+                </template>
+            </el-table-column>
+
             <el-table-column prop="ip_address" label="IP 地址" width="140" show-overflow-tooltip>
                 <template #default="{ row }">
                     <span class="ip-address">{{ row.ip_address }}</span>
@@ -195,6 +201,7 @@ const emit = defineEmits<{
 }>()
 
 const displayUrls = computed(() => {
+    console.log('filteredPhishingUrls:', props.filteredPhishingUrls)
     return props.filteredPhishingUrls || []
 })
 </script>

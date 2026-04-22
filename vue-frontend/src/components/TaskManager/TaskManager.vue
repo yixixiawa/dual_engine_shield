@@ -48,16 +48,16 @@
             </template>
 
             <el-table :data="filteredTasks" stripe v-loading="tasksStore.isLoading" style="width: 100%">
-                <el-table-column prop="id" label="任务ID" width="200">
+                <el-table-column prop="id" label="任务ID" width="100">
                     <template #default="{ row }">
                         <span class="mono text-sm">{{ row.id }}</span>
                     </template>
                 </el-table-column>
 
-                <el-table-column prop="type" label="类型" width="120">
+                <el-table-column prop="detection_type" label="类型" width="120">
                     <template #default="{ row }">
-                        <el-tag :type="getTypeTagType(row.type)" size="small">
-                            {{ getTypeName(row.type) }}
+                        <el-tag :type="getTypeTagType(row.detection_type)" size="small">
+                            {{ getTypeName(row.detection_type) }}
                         </el-tag>
                     </template>
                 </el-table-column>
@@ -70,7 +70,7 @@
                     </template>
                 </el-table-column>
 
-                <el-table-column prop="target" label="目标" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="input_data" label="目标" min-width="200" show-overflow-tooltip />
 
                 <el-table-column prop="result" label="结果" width="180">
                     <template #default="{ row }">
@@ -91,6 +91,19 @@
 
             <div v-if="filteredTasks.length === 0" class="empty-state">
                 <el-empty description="暂无任务" />
+            </div>
+
+            <!-- 分页控件 -->
+            <div v-else class="pagination-container">
+                <el-pagination
+                    v-model:current-page="tasksStore.currentPage"
+                    v-model:page-size="tasksStore.pageSize"
+                    :page-sizes="[10, 20, 50, 100]"
+                    layout="total, sizes, prev, pager, next, jumper"
+                    :total="tasksStore.totalTasks"
+                    @size-change="tasksStore.setPageSize"
+                    @current-change="tasksStore.setPage"
+                />
             </div>
         </el-card>
     </div>
@@ -122,7 +135,7 @@ const filteredTasks = computed(() => {
         filtered = filtered.filter(t => t.status === statusFilter.value)
     }
     if (typeFilter.value !== 'all') {
-        filtered = filtered.filter(t => t.type === typeFilter.value)
+        filtered = filtered.filter(t => t.detection_type === typeFilter.value)
     }
     return filtered
 })
@@ -328,5 +341,37 @@ onMounted(() => {
 .empty-state {
     padding: 2rem;
     animation: fadeIn 0.3s ease-out;
+}
+
+.pagination-container {
+    margin-top: 1rem;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+
+    :deep(.el-pagination) {
+        transition: all 0.2s ease;
+
+        .el-pager li {
+            transition: all 0.2s ease;
+
+            &:hover {
+                color: $primary;
+            }
+
+            &.is-active {
+                background-color: $primary;
+                border-color: $primary;
+            }
+        }
+
+        .el-select .el-input__wrapper {
+            transition: all 0.2s ease;
+
+            &:hover, &:focus-within {
+                box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+            }
+        }
+    }
 }
 </style>

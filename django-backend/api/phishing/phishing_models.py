@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 class PhishingModelLoader:
-    """单例模式的模型加载器"""
     
     _instance = None
     _models = {}

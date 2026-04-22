@@ -15,8 +15,8 @@
                     <div :class="['model-dot', model.color]"></div>
                     <span class="model-name">{{ model.name }}</span>
                     <span class="model-score" :class="getScoreClass(model.score)">
-                        {{ (model.score * 100).toFixed(1) }}%
-                    </span>
+                            {{ (model.score * 100).toFixed(2) }}%
+                        </span>
                 </div>
                 <el-progress :percentage="model.score * 100" :color="getProgressColor(model.score, model.color)"
                     :stroke-width="8" :show-text="false" />
@@ -41,7 +41,7 @@
                         <el-tag :type="getDecisionType(result.layers[layer.key]?.decision)" size="small">
                             {{ getDecisionText(result.layers[layer.key]?.decision) }}
                         </el-tag>
-                        <span class="layer-score">{{ (result.layers[layer.key]?.score * 100).toFixed(1) }}%</span>
+                        <span class="layer-score">{{ (result.layers[layer.key]?.score * 100).toFixed(2) }}%</span>
                     </div>
                 </div>
                 <div class="layer-time" v-if="result.layers[layer.key]?.time_ms">

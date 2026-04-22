@@ -6,6 +6,12 @@
                 <p class="page-header__desc">输入可疑网址并查看风险评分、模型输出和历史检测记录。</p>
             </div>
             <div class="page-actions">
+                <el-button @click="toggleEarthModel" :type="showEarthModel ? 'primary' : 'default'">
+                    <el-icon>
+                        <Odometer />
+                    </el-icon>
+                    {{ showEarthModel ? '返回检测' : '地球视图' }}
+                </el-button>
                 <el-tag type="success" effect="plain" class="status-tag">
                     <el-icon>
                         <Check />
@@ -21,83 +27,89 @@
             </div>
         </section>
 
-        <ModelSelector />
+        <div v-if="showEarthModel" class="earth-model-container">
+            <Earth_model />
+        </div>
 
-        <DetectionPanel @detect="handleDetect" @batchDetect="handleBatchDetect" />
+        <div v-else>
+            <ModelSelector />
 
-        <el-card v-if="normalizedResult && !batchResult" class="result-section" shadow="never">
-            <template #header>
-                <div class="section-title">
-                    <el-icon>
-                        <DataAnalysis />
-                    </el-icon>
-                    <span>检测结果</span>
-                </div>
-            </template>
-            <PhishingResultDetail :result="normalizedResult" />
-        </el-card>
+            <DetectionPanel @detect="handleDetect" @batchDetect="handleBatchDetect" />
 
-        <el-card v-if="batchResult" class="result-section" shadow="never">
-            <template #header>
-                <div class="section-title">
-                    <el-icon>
-                        <DataAnalysis />
-                    </el-icon>
-                    <span>批量检测结果</span>
-                    <el-tag size="small" type="info" class="batch-stats">
-                        共 {{ batchResult.total_urls }} 个URL，{{ batchResult.phishing_count }} 个钓鱼网站
-                    </el-tag>
-                </div>
-            </template>
-            <el-table :data="batchResult.results" style="width: 100%">
-                <el-table-column prop="url" label="URL" min-width="300">
-                    <template #default="scope">
-                        <a :href="scope.row.url" target="_blank" rel="noopener noreferrer" class="url-link">
-                            {{ scope.row.url }}
-                        </a>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="is_phishing" label="是否钓鱼" width="120">
-                    <template #default="scope">
-                        <el-tag :type="scope.row.is_phishing ? 'danger' : 'success'">
-                            {{ scope.row.is_phishing ? '是' : '否' }}
+            <el-card v-if="normalizedResult && !batchResult" class="result-section" shadow="never">
+                <template #header>
+                    <div class="section-title">
+                        <el-icon>
+                            <DataAnalysis />
+                        </el-icon>
+                        <span>检测结果</span>
+                    </div>
+                </template>
+                <PhishingResultDetail :result="normalizedResult" />
+            </el-card>
+
+            <el-card v-if="batchResult" class="result-section" shadow="never">
+                <template #header>
+                    <div class="section-title">
+                        <el-icon>
+                            <DataAnalysis />
+                        </el-icon>
+                        <span>批量检测结果</span>
+                        <el-tag size="small" type="info" class="batch-stats">
+                            共 {{ batchResult.total_urls }} 个URL，{{ batchResult.phishing_count }} 个钓鱼网站
                         </el-tag>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="score" label="风险评分" width="120">
-                    <template #default="scope">
-                        <div class="score-container">
-                            <el-progress 
-                                :percentage="Math.round(scope.row.score * 100)" 
-                                :color="getScoreColor(scope.row.score)"
-                                :stroke-width="10"
-                                :show-text="false"
-                            />
-                            <span class="score-text">{{ (scope.row.score * 100).toFixed(1) }}%</span>
-                        </div>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="latency_ms" label="检测时间(ms)" width="120">
-                    <template #default="scope">
-                        {{ scope.row.latency_ms.toFixed(2) }}
-                    </template>
-                </el-table-column>
-                <el-table-column label="操作" width="120">
-                    <template #default="scope">
-                        <el-button size="small" type="primary" @click="viewDetails(scope.row)">
-                            查看详情
-                        </el-button>
-                    </template>
-                </el-table-column>
-            </el-table>
-        </el-card>
+                    </div>
+                </template>
+                <el-table :data="batchResult.results" style="width: 100%">
+                    <el-table-column prop="url" label="URL" min-width="300">
+                        <template #default="scope">
+                            <a :href="scope.row.url" target="_blank" rel="noopener noreferrer" class="url-link">
+                                {{ scope.row.url }}
+                            </a>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="is_phishing" label="是否钓鱼" width="120">
+                        <template #default="scope">
+                            <el-tag :type="scope.row.is_phishing ? 'danger' : 'success'">
+                                {{ scope.row.is_phishing ? '是' : '否' }}
+                            </el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="score" label="风险评分" width="120">
+                        <template #default="scope">
+                            <div class="score-container">
+                                <el-progress 
+                                    :percentage="Math.round(scope.row.score * 100)" 
+                                    :color="getScoreColor(scope.row.score)"
+                                    :stroke-width="10"
+                                    :show-text="false"
+                                />
+                                <span class="score-text">{{ (scope.row.score * 100).toFixed(2) }}%</span>
+                            </div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="latency_ms" label="检测时间(ms)" width="120">
+                        <template #default="scope">
+                            {{ scope.row.latency_ms.toFixed(2) }}
+                        </template>
+                    </el-table-column>
+                    <el-table-column label="操作" width="120">
+                        <template #default="scope">
+                            <el-button size="small" type="primary" @click="viewDetails(scope.row)">
+                                查看详情
+                            </el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-card>
 
-        <HistoryTable :history="detectionStore.history" @clear="clearHistory" />
+            <HistoryTable :history="detectionStore.history" @clear="clearHistory" />
+        </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useDetectionStore } from '@/stores/detection'
 import { useWhitelistStore } from '@/stores/whitelist'
 import type { PhishingTrackResponse, BatchPhishingDetectResponse, PhishingDetectResponse } from '@/api/modules/phishing'
@@ -105,10 +117,17 @@ import ModelSelector from './ModelSelector.vue'
 import DetectionPanel from './DetectionPanel.vue'
 import HistoryTable from './HistoryTable.vue'
 import PhishingResultDetail from '../common/PhishingResultDetail.vue'
+import Earth_model from '../Earth_model/Earth_model.vue'
+import { Odometer, Check, Star, DataAnalysis } from '@element-plus/icons-vue'
 
 const detectionStore = useDetectionStore()
 const whitelistStore = useWhitelistStore()
 const batchResult = ref<BatchPhishingDetectResponse | null>(null)
+const showEarthModel = ref(false)
+
+const toggleEarthModel = () => {
+    showEarthModel.value = !showEarthModel.value
+}
 
 const currentModelName = computed(() => 'GTE 深度语义检测')
 
@@ -190,6 +209,13 @@ const viewDetails = (result: PhishingDetectResponse) => {
     .status-tag {
         padding: 0.5rem 0.875rem;
         border-radius: 999px;
+    }
+
+    .earth-model-container {
+        height: calc(100vh - 200px);
+        min-height: 500px;
+        border-radius: $radius-lg;
+        overflow: hidden;
     }
 
     .result-section {

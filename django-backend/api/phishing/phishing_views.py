@@ -13,8 +13,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from .phishing_service import PhishingAnalysisService
-from ..ipinfo.domain_resolver import get_resolver
-from ..db import IPInfoDatabase
+from ..domain_resolver import get_resolver
 from ..models import GeoPhishingLocation, DetectionLog
 
 logger = logging.getLogger(__name__)
@@ -255,8 +254,7 @@ class PhishingBatchDetectView(APIView):
             detection_log.save()
 
             resolver = get_resolver()
-            db = IPInfoDatabase()
-            ipinfo_results = []
+            geo_sync_results = []
 
             for item in result.get('results', []):
                 try:
@@ -264,51 +262,91 @@ class PhishingBatchDetectView(APIView):
                     if not item_url:
                         continue
 
+                    # 检查是否为钓鱼网站
+                    is_phishing = item.get('is_phishing', False)
+                    if not is_phishing:
+                        continue
+
+                    # DNS 解析
                     ip_address = resolver.resolve_domain(item_url)
                     if not ip_address:
-                        ipinfo_results.append({
-                            'url': item_url,
-                            'status': 'dns_failed',
-                            'ip': None,
-                        })
                         continue
 
-                    cached_info = db.get_ip_info(ip_address)
-                    if cached_info:
-                        ipinfo_results.append({
-                            'url': item_url,
-                            'status': 'cached',
-                            'ip': ip_address,
-                            'database_id': cached_info.get('id'),
-                        })
-                        continue
+                    # 同步到主库的 GeoPhishing 数据库
+                    domain = resolver.extract_domain(item_url)
+                    threat_level = 'phishing'
+                    # 处理 score 为 None 的情况
+                    score = item.get('score')
+                    phishing_score = (score * 100) if score is not None else 0.0
 
-                    ip_data, error = db.query_ipinfo_api(ip_address)
-                    if ip_data:
-                        saved_info = db.get_ip_info(ip_address) or {}
-                        ipinfo_results.append({
-                            'url': item_url,
-                            'status': 'saved',
-                            'ip': ip_address,
-                            'database_id': saved_info.get('id'),
+                    try:
+                        # 获取 IP 地理信息
+                        geo_data = resolver.get_ip_geolocation(ip_address)
+                        
+                        # 解析经纬度
+                        latitude = 0.0
+                        longitude = 0.0
+                        loc_str = geo_data.get('loc')
+                        if loc_str and ',' in loc_str:
+                            try:
+                                lat_str, lon_str = loc_str.split(',', 1)
+                                latitude = float(lat_str)
+                                longitude = float(lon_str)
+                            except Exception as e:
+                                logger.warning(f"⚠️ 经纬度解析失败 {loc_str}: {str(e)}")
+                        
+                        # 创建或更新地理位置记录
+                        location, created = GeoPhishingLocation.objects.update_or_create(
+                            ip_address=ip_address,
+                            domain=domain or '',
+                            url=item_url or '',
+                            defaults={
+                                'country': geo_data.get('country', 'Unknown'),
+                                'region': geo_data.get('region'),
+                                'city': geo_data.get('city'),
+                                'latitude': latitude,
+                                'longitude': longitude,
+                                'postal_code': geo_data.get('postal'),
+                                'timezone': geo_data.get('timezone'),
+                                'org': geo_data.get('org'),
+                                'asn': geo_data.get('asn'),
+                                'threat_level': threat_level,
+                                'is_phishing': True,
+                                'risk_score': phishing_score,
+                                'raw_data': geo_data,
+                                'source_type': 'batch_detection',
+                            }
+                        )
+
+                        if not created:
+                            # 更新风险评分和检测次数
+                            location.risk_score = phishing_score
+                            location.detection_count += 1
+                            location.last_seen = timezone.now()
+                            location.save()
+                        location.save()
+
+                        logger.info(f"✅ 地理位置已{'创建' if created else '更新'}: {ip_address}")
+                        
+                        geo_sync_results.append({
+                            "ip": ip_address,
+                            "status": "success",
+                            "created": created,
+                            "geolocation_id": location.id,
+                            "location": {
+                                "country": location.country,
+                                "city": location.city,
+                                "latitude": location.latitude,
+                                "longitude": location.longitude,
+                                "risk_score": location.risk_score
+                            }
                         })
-                    else:
-                        ipinfo_results.append({
-                            'url': item_url,
-                            'status': 'query_failed',
-                            'ip': ip_address,
-                            'error': error,
-                        })
+                    except Exception as geo_error:
+                        logger.error(f"❌ 同步地理位置失败 {ip_address}: {geo_error}")
                 except Exception as item_error:
-                    logger.error(f"❌ 保存批量 URL 的 ip_info 失败 {item.get('url', '')}: {item_error}")
-                    ipinfo_results.append({
-                        'url': item.get('url', ''),
-                        'status': 'failed',
-                        'ip': None,
-                        'error': str(item_error),
-                    })
+                    logger.error(f"❌ 处理批量 URL 失败 {item.get('url', '')}: {item_error}")
 
-            logger.info(f"✅ 已处理 {len(ipinfo_results)} 条批量 URL 的 ip_info 写入")
+            logger.info(f"✅ 已处理 {len(result.get('results', []))} 条批量 URL，同步 {len(geo_sync_results)} 条到 GeoPhishing 数据库")
 
             logger.info(f"✅ 检测日志已更新，任务ID: {task_id}，状态: completed")
 
@@ -318,7 +356,7 @@ class PhishingBatchDetectView(APIView):
                 "task_id": task_id,
                 "task_status": "completed",
                 "processing_time_ms": round(processing_time * 1000, 2),
-                "ipinfo_results": ipinfo_results,
+                "geolocation_sync": geo_sync_results,
             }
 
             return Response(response_data, status=status.HTTP_200_OK)
@@ -769,7 +807,6 @@ class PhishingAndGeoTrackView(APIView):
                 "phishing_detection": phishing_result,
                 "is_phishing": is_phishing,
                 "domain_resolution": None,
-                "ipinfo": None,
                 "geolocation_sync": None,
                 "message": "检测完成"
             }
@@ -812,102 +849,30 @@ class PhishingAndGeoTrackView(APIView):
                 response_data["message"] = f"DNS 解析异常: {str(e)}"
                 return Response(response_data, status=status.HTTP_200_OK)
 
-            # ==================== 步骤 3: IP 地理信息查询 ====================
-            logger.info(f"🔍 [步骤3] 查询 IP 地理信息...")
-            try:
-                db = IPInfoDatabase()
-                
-                ipinfo_results = []
-                threat_level = "phishing"  # 因为是钓鱼网站，威胁等级为 phishing
-                
-                for ip_address in ip_list:
-                    try:
-                        # 先检查缓存
-                        if use_cache:
-                            cached_info = db.get_ip_info(ip_address)
-                            if cached_info:
-                                logger.info(f"✅ 从缓存获取 IP 信息: {ip_address}")
-                                ipinfo_results.append({
-                                    "ip": ip_address,
-                                    "source": "cache",
-                                    "data": cached_info,
-                                    "database_id": None
-                                })
-                                continue
-
-                        # 调用 IPinfo API
-                        logger.info(f"🌐 调用 IPinfo API 查询: {ip_address}")
-                        ip_data, error = db.query_ipinfo_api(ip_address)
-                        
-                        if ip_data:
-                            # 保存到数据库（已在 query_ipinfo_api 中自动保存）
-                            logger.info(f"✅ IP 信息已保存到数据库: {ip_address}")
-                            
-                            # 直接从数据库获取保存的记录，包括 ID
-                            saved_ip_info = db.get_ip_info(ip_address)
-                            database_id = saved_ip_info.get('id') if saved_ip_info else None
-                            
-                            # 将钓鱼检测的风险分数更新到数据库
-                            if is_phishing:
-                                phishing_score = phishing_result.get("score", 0.0)
-                                # 构建包含风险分数的更新数据
-                                update_data = {
-                                    "ip_address": ip_address,
-                                    "risk_score": phishing_score
-                                }
-                                # 更新数据库中的风险分数
-                                db.save_ip_info(update_data)
-                                logger.info(f"✅ 已更新 IP {ip_address} 的风险分数: {phishing_score}")
-                            
-                            ipinfo_results.append({
-                                "ip": ip_address,
-                                "source": "api",
-                                "data": ip_data,
-                                "database_id": database_id
-                            })
-                        else:
-                            logger.warning(f"⚠️ 无法获取 IP 信息: {ip_address} - {error}")
-                            ipinfo_results.append({
-                                "ip": ip_address,
-                                "status": "failed",
-                                "error": error or "未知错误"
-                            })
-
-                    except Exception as e:
-                        logger.error(f"❌ 查询 IP {ip_address} 异常: {str(e)}")
-                        ipinfo_results.append({
-                            "ip": ip_address,
-                            "status": "failed",
-                            "error": str(e)
-                        })
-
-                response_data["ipinfo"] = ipinfo_results
-
-            except Exception as e:
-                logger.error(f"❌ IP 查询异常: {str(e)}")
-                response_data["message"] = f"IP 查询异常: {str(e)}"
-                return Response(response_data, status=status.HTTP_200_OK)
-
-            # ==================== 步骤 4: 同步到 GeoPhishing 数据库 ====================
+            # ==================== 步骤 3: 直接同步到主库的 GeoPhishing 数据库 ====================
             if sync_to_geo:
-                logger.info(f"🔍 [步骤4] 同步到 GeoPhishing 数据库...")
+                logger.info(f"🔍 [步骤3] 同步到 GeoPhishing 数据库...")
                 try:
                     geo_sync_results = []
+                    threat_level = "phishing"  # 因为是钓鱼网站，威胁等级为 phishing
                     
-                    for ipinfo in ipinfo_results:
-                        if ipinfo.get("status") == "failed":
-                            continue
-
-                        ip_address = ipinfo.get("ip")
-                        ip_data = ipinfo.get("data", {})
-
+                    for ip_address in ip_list:
                         try:
+                            # 获取 IP 地理信息
+                            geo_data = resolver.get_ip_geolocation(ip_address)
+                            
                             # 解析经纬度
-                            loc_str = ip_data.get('loc', '0,0')
-                            loc_parts = loc_str.split(',')
-                            latitude = float(loc_parts[0]) if len(loc_parts) > 0 else 0.0
-                            longitude = float(loc_parts[1]) if len(loc_parts) > 1 else 0.0
-
+                            latitude = 0.0
+                            longitude = 0.0
+                            loc_str = geo_data.get('loc')
+                            if loc_str and ',' in loc_str:
+                                try:
+                                    lat_str, lon_str = loc_str.split(',', 1)
+                                    latitude = float(lat_str)
+                                    longitude = float(lon_str)
+                                except Exception as e:
+                                    logger.warning(f"⚠️ 经纬度解析失败 {loc_str}: {str(e)}")
+                            
                             # 创建或更新地理位置记录
                             phishing_score = phishing_result.get("score", 0.0) * 100  # 转换为 0-100 范围
                             location, created = GeoPhishingLocation.objects.update_or_create(
@@ -915,19 +880,19 @@ class PhishingAndGeoTrackView(APIView):
                                 domain=domain or '',
                                 url=url or '',
                                 defaults={
-                                    'country': ip_data.get('country', 'Unknown'),
-                                    'region': ip_data.get('region'),
-                                    'city': ip_data.get('city'),
+                                    'country': geo_data.get('country', 'Unknown'),
+                                    'region': geo_data.get('region'),
+                                    'city': geo_data.get('city'),
                                     'latitude': latitude,
                                     'longitude': longitude,
-                                    'postal_code': ip_data.get('postal'),
-                                    'timezone': ip_data.get('timezone'),
-                                    'org': ip_data.get('org'),
-                                    'asn': ip_data.get('asn'),
+                                    'postal_code': geo_data.get('postal'),
+                                    'timezone': geo_data.get('timezone'),
+                                    'org': geo_data.get('org'),
+                                    'asn': geo_data.get('asn'),
                                     'threat_level': threat_level,
                                     'is_phishing': True,
                                     'risk_score': phishing_score,  # 使用钓鱼检测的分数
-                                    'raw_data': ip_data,
+                                    'raw_data': geo_data,
                                     'source_type': 'phishing_detection',
                                 }
                             )

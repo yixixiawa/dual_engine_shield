@@ -32,7 +32,7 @@
             <el-table-column prop="score" label="风险评分" width="100">
                 <template #default="{ row }">
                     <span :class="getScoreClass(row.score)" class="score-value">
-                        {{ (row.score * 100).toFixed(1) }}%
+                        {{ (row.score * 100).toFixed(2) }}%
                     </span>
                 </template>
             </el-table-column>

@@ -52,7 +52,7 @@ export async function getToken(): Promise<string | null> {
     }
 
     try {
-        const response = await fetch("/api/ipinfo/token/");
+        const response = await fetch("/ipinfo/token/");
         if (response.ok) {
             const data = await response.json();
             cachedToken = data.token;
@@ -70,7 +70,7 @@ export function clearTokenCache(): void {
 
 export async function getIPGeoInfo(ip?: string): Promise<IPGeoInfo | null> {
     try {
-        const path = ip ? `/api/ipinfo/${ip}/` : "/api/ipinfo/";
+        const path = ip ? `/ipinfo/${ip}/` : "/ipinfo/";
         const data: any = await apiCall(path, "GET");
 
         if (data.error) {
@@ -136,7 +136,7 @@ export async function queryDomain(
 
         console.log(`🔍 开始查询域名: ${domain}`);
 
-        const response = await fetch("/api/ipinfo/domain/", {
+        const response = await fetch("/ipinfo/domain/", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -271,7 +271,7 @@ export async function getPhishingDetectionResults(
 
         // 调用钓鱼检测 API
         const queryString = params.toString() ? `?${params.toString()}` : '';
-        const response = await fetch(`/api/phishing/${queryString}`, {
+        const response = await fetch(`/phishing/${queryString}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',

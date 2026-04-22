@@ -4,12 +4,16 @@ import { getTaskList, type Task as ApiTask } from '@/api'
 
 // 定义任务接口
 export interface Task {
-    id: string
-    type: 'phishing' | 'source_code' | 'url' | 'web' | 'batch' | 'combined' | 'vulnerability'
-    status: 'pending' | 'processing' | 'completed' | 'failed'
-    target: string
-    createdAt: string
+    id: number
+    task_id: number
+    detection_type: string
+    status: string
+    input_data: string
     result?: any
+    processing_time?: number
+    error_message?: string | null
+    createdAt: string
+    updatedAt: string
 }
 
 export const useTasksStore = defineStore('tasks', () => {
@@ -17,6 +21,11 @@ export const useTasksStore = defineStore('tasks', () => {
     const currentTask = ref<Task | null>(null)
     const detailVisible = ref(false)
     const isLoading = ref(false)
+    
+    // 分页状态
+    const currentPage = ref(1)
+    const pageSize = ref(20)
+    const totalTasks = ref(0)
 
     // 计算属性
     const pendingCount = computed(() => tasks.value.filter(t => t.status === 'pending').length)
@@ -57,25 +66,31 @@ export const useTasksStore = defineStore('tasks', () => {
     }
 
     // 从API任务转换为前端任务
-    const convertApiTaskToTask = (apiTask: ApiTask): Task => {
+    const convertApiTaskToTask = (apiTask: any): Task => {
         // 尝试解析 input_data 为 JSON，获取目标 URL
-        let target = apiTask.input_data
+        let inputData = apiTask.input_data
         try {
-            const inputData = JSON.parse(apiTask.input_data)
-            if (inputData.url) {
-                target = inputData.url
+            const parsed = JSON.parse(apiTask.input_data)
+            if (parsed.url) {
+                inputData = parsed.url
+            } else if (parsed.urls) {
+                inputData = `批量检测: ${parsed.urls.length} 个URL`
             }
         } catch (e) {
             // 如果解析失败，使用原始 input_data
         }
 
         return {
-            id: `TASK_${apiTask.task_id}`,
-            type: 'phishing', // 默认为钓鱼检测
-            status: apiTask.status as 'pending' | 'processing' | 'completed' | 'failed',
-            target: target,
+            id: apiTask.id,
+            task_id: apiTask.task_id || apiTask.id, // 兼容后端数据，使用id作为task_id的 fallback
+            detection_type: apiTask.detection_type || 'phishing',
+            status: apiTask.status,
+            input_data: inputData,
+            result: apiTask.result,
+            processing_time: apiTask.processing_time_ms || apiTask.processing_time, // 兼容后端数据，处理字段名差异
+            error_message: apiTask.error_message,
             createdAt: apiTask.created_at,
-            result: apiTask.error_message ? { error: apiTask.error_message } : undefined
+            updatedAt: apiTask.updated_at
         }
     }
 
@@ -83,16 +98,51 @@ export const useTasksStore = defineStore('tasks', () => {
     const fetchTasks = async () => {
         isLoading.value = true
         try {
-            // 从后端 API 获取任务列表
-            const response = await getTaskList()
+            // 从后端 API 获取任务列表，传递分页参数
+            const response = await getTaskList({ 
+                page: currentPage.value,
+                page_size: pageSize.value
+            })
             
-            // 转换 API 任务为前端任务
-            tasks.value = response.tasks.map(convertApiTaskToTask)
+            // 后端返回的是数组格式 [{...}, {...}, ...]
+            if (Array.isArray(response)) {
+                tasks.value = response.map(convertApiTaskToTask)
+                totalTasks.value = response.length
+            } else if (response.results) {
+                // 标准格式：{ results: [...], count: number }
+                tasks.value = response.results.map(convertApiTaskToTask)
+                totalTasks.value = response.count || 0
+            } else {
+                console.warn('获取任务列表返回了非预期的数据格式:', response)
+                tasks.value = []
+                totalTasks.value = 0
+            }
         } catch (error: any) {
             console.error('获取任务列表失败:', error)
+            tasks.value = []
+            totalTasks.value = 0
         } finally {
             isLoading.value = false
         }
+    }
+
+    // 设置当前页码
+    const setPage = (page: number) => {
+        currentPage.value = page
+        fetchTasks()
+    }
+
+    // 设置每页大小
+    const setPageSize = (size: number) => {
+        pageSize.value = size
+        currentPage.value = 1 // 重置为第一页
+        fetchTasks()
+    }
+
+    // 重置分页
+    const resetPagination = () => {
+        currentPage.value = 1
+        pageSize.value = 20
     }
 
     // 显示任务详情
@@ -111,10 +161,16 @@ export const useTasksStore = defineStore('tasks', () => {
         currentTask,
         detailVisible,
         isLoading,
+        // 分页相关
+        currentPage,
+        pageSize,
+        totalTasks,
+        // 计算属性
         pendingCount,
         processingCount,
         completedCount,
         failedCount,
+        // 方法
         addTask,
         updateTask,
         getTask,
@@ -122,6 +178,9 @@ export const useTasksStore = defineStore('tasks', () => {
         clearTasks,
         fetchTasks,
         showTaskDetail,
-        closeTaskDetail
+        closeTaskDetail,
+        setPage,
+        setPageSize,
+        resetPagination
     }
 })

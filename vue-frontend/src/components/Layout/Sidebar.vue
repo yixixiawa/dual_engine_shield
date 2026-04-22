@@ -82,8 +82,11 @@ const iconMap: Record<string, any> = {
 const menuItems = computed<MenuItem[]>(() => {
     const routes = router.getRoutes()
     
+    // 排除不显示在侧边栏的路由
+    const hiddenRoutes = ['earthmodel', 'NotFound']
+    
     return routes
-        .filter(r => r.meta?.title && r.name)
+        .filter(r => r.meta?.title && r.name && !hiddenRoutes.includes(r.name as string))
         .map(r => {
             const name = r.name as string
             const title = r.meta?.title as string || name

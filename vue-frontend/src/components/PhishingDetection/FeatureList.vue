@@ -21,7 +21,7 @@
                     <div class="feature-info">
                         <span class="feature-name">{{ feature.name || feature.feature || '未知特征' }}</span>
                         <el-tag :type="feature.score > 0.5 ? 'danger' : 'success'" size="small">
-                            {{ feature.score > 0 ? '+' : '' }}{{ (feature.score * 100).toFixed(0) }}%
+                            {{ feature.score > 0 ? '+' : '' }}{{ (feature.score * 100).toFixed(2) }}%
                         </el-tag>
                     </div>
                     <div class="feature-icon">

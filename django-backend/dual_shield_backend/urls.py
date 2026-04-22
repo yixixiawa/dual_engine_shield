@@ -4,7 +4,6 @@ from rest_framework import routers
 from drf_spectacular.views import SpectacularSwaggerView, SpectacularRedocView, SpectacularAPIView
 from api import views
 from api.phishing import phishing_views
-from api.ipinfo import ipinfo_views
 from api.views.geo_phishing import (
     GeoPhishingLocationViewSet,
     GeoPhishingStatisticsViewSet,
@@ -43,17 +42,6 @@ urlpatterns = [
     path('api/detect/fish-task/', phishing_views.PhishingDetectionTaskView.as_view(), name='fish-task-query'),
     path('api/detect/fish-task/<int:task_id>/', phishing_views.PhishingDetectionTaskView.as_view(), name='fish-task-detail'),
     path('api/detect/fish-tasks/', phishing_views.PhishingDetectionTaskListView.as_view(), name='fish-tasks-list'),
-
-    # IP 地理信息查询 API
-    path('api/ipinfo/query/', ipinfo_views.IPInfoQueryView.as_view(), name='ipinfo-query'),
-    path('api/ipinfo/batch-query/', ipinfo_views.BatchIPInfoQueryView.as_view(), name='ipinfo-batch-query'),
-    path('api/ipinfo/database-info/', ipinfo_views.DatabaseInfoView.as_view(), name='ipinfo-database-info'),
-    path('api/ipinfo/save/', ipinfo_views.IPInfoSaveView.as_view(), name='ipinfo-save'),
-    path('api/ipinfo/batch-save/', ipinfo_views.BatchIPInfoSaveView.as_view(), name='ipinfo-batch-save'),
-    path('api/ipinfo/all/', ipinfo_views.AllIPInfoView.as_view(), name='ipinfo-all'),
-
-    # 域名查询 API（域名转 IP + 地理信息）
-    path('api/ipinfo/domain/', ipinfo_views.DomainQueryView.as_view(), name='domain-query'),
 
     # 地理位置钓鱼追踪 API (直接使用 path 注册，避免与 router 冲突)
     path('api/geo-phishing/locations/', GeoPhishingLocationViewSet.as_view(), name='geo-phishing-locations'),

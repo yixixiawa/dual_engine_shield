@@ -4,7 +4,7 @@
             <span class="text-gray-400">-</span>
         </template>
 
-        <template v-else-if="task.type === 'source_code' || task.type === 'vulnerability'">
+        <template v-else-if="task.detection_type === 'source_code' || task.detection_type === 'vulnerability'">
             <div v-if="task.result?.is_vulnerable" class="result-vulnerable">
                 <el-tag type="danger" size="small" effect="dark">⚠️ 存在漏洞</el-tag>
                 <el-tag :type="severityTagType" size="small" class="severity-tag">
@@ -17,28 +17,29 @@
             </div>
         </template>
 
-        <template v-else-if="task.type === 'phishing'">
-            <div v-if="task.result?.final || task.result?.risk_score">
-                <el-tag :type="getPhishingTagType(score)" size="small">
-                    {{ score > 50 ? '⚠️' : '✅' }} {{ score.toFixed(1) }}%
+        <template v-else-if="task.detection_type === 'phishing'">
+            <div v-if="task.result?.final || task.result?.risk_score || phishingScore > 0">
+                <el-tag :type="getPhishingTagType(phishingScore)" size="small">
+                    {{ phishingScore > 50 ? '⚠️' : '✅' }} {{ phishingScore.toFixed(1) }}%
                 </el-tag>
             </div>
+            <span v-else-if="batchResultInfo" class="text-gray-400">{{ batchResultInfo }}</span>
             <span v-else class="text-gray-400">-</span>
         </template>
 
-        <template v-else-if="task.type === 'url'">
+        <template v-else-if="task.detection_type === 'url'">
             <el-tag :type="task.result?.is_vulnerable ? 'danger' : 'success'" size="small">
                 {{ task.result?.is_vulnerable ? '存在风险' : '安全' }}
             </el-tag>
         </template>
 
-        <template v-else-if="task.type === 'web'">
+        <template v-else-if="task.detection_type === 'web'">
             <el-tag :type="(task.result?.vulnerabilities_found || 0) > 0 ? 'danger' : 'success'" size="small">
                 发现 {{ task.result?.vulnerabilities_found || 0 }} 个漏洞
             </el-tag>
         </template>
 
-        <template v-else-if="task.type === 'combined'">
+        <template v-else-if="task.detection_type === 'combined'">
             <el-tag :type="getCombinedRiskType(task.result)" size="small">
                 {{ getCombinedRiskText(task.result) }}
             </el-tag>
@@ -57,18 +58,42 @@ import { computed } from 'vue'
 
 const props = defineProps<{
     task: {
-        id: string
-        type: string
+        id: number
+        detection_type: string
         status: string
         result?: any
     }
 }>()
 
-const score = computed(() => {
+const phishingScore = computed(() => {
     const result = props.task.result
-    if (result?.final !== undefined) return result.final * 100
-    if (result?.risk_score !== undefined) return result.risk_score * 100
+    if (!result) return 0
+    
+    // 处理批量检测结果
+    if (result.kind === 'BatchAnalyzeResult' && result.results) {
+        // 如果有多个结果，返回钓鱼网站数量比例
+        const phishingCount = result.phishing_count || 0
+        const totalUrls = result.total_urls || 1
+        return (phishingCount / totalUrls) * 100
+    }
+    
+    // 处理单个检测结果
+    if (result.final !== undefined) return result.final * 100
+    if (result.risk_score !== undefined) return result.risk_score * 100
+    if (result.score !== undefined) return result.score * 100
     return 0
+})
+
+const batchResultInfo = computed(() => {
+    const result = props.task.result
+    if (!result) return null
+    
+    // 处理批量检测结果
+    if (result.kind === 'BatchAnalyzeResult' && result.results) {
+        return `批量检测: ${result.total_urls} 个URL, ${result.phishing_count} 个钓鱼`
+    }
+    
+    return null
 })
 
 const severityText = computed(() => {

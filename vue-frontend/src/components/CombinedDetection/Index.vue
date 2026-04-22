@@ -10,7 +10,7 @@ defineOptions({
   meta: {
     title: '综合检测',
     icon: 'Monitor',
-    order: 99
+    order: 1
   }
 })
 </script>
