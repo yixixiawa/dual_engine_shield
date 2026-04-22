@@ -4,12 +4,10 @@ IPinfo 数据库表结构定义
 定义所有数据表的 SQL schema
 """
 
-# ==================== 表结构定义 ====================
 
 class IPInfoSchema:
     """IPinfo 数据库表结构"""
-    
-    # IP 信息表
+
     IP_INFO_TABLE = '''
         CREATE TABLE IF NOT EXISTS ip_info (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -17,21 +15,21 @@ class IPInfoSchema:
             city TEXT,
             region TEXT,
             country TEXT,
-            loc TEXT,                          -- 经纬度
-            org TEXT,                          -- ISP
+            loc TEXT,
+            org TEXT,
             postal TEXT,
             timezone TEXT,
             hostname TEXT,
-            asn TEXT,                          -- 自治系统号
-            status TEXT DEFAULT 'active',      -- active, inactive, blocked, expired
+            asn TEXT,
+            risk_score REAL DEFAULT 0.0,
+            status TEXT DEFAULT 'active',
             query_count INTEGER DEFAULT 1,
             first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            raw_response TEXT                  -- 原始 JSON 响应
+            raw_response TEXT
         )
     '''
-    
-    # API 密钥管理表（存储 IPinfo API 密钥）
+
     API_KEYS_TABLE = '''
         CREATE TABLE IF NOT EXISTS api_keys (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,8 +46,7 @@ class IPInfoSchema:
             notes TEXT
         )
     '''
-    
-    # 查询历史表
+
     QUERY_HISTORY_TABLE = '''
         CREATE TABLE IF NOT EXISTS query_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,8 +60,7 @@ class IPInfoSchema:
             FOREIGN KEY (api_key_id) REFERENCES api_keys(id)
         )
     '''
-    
-    # 批量查询任务表
+
     BATCH_TASKS_TABLE = '''
         CREATE TABLE IF NOT EXISTS batch_tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,8 +73,7 @@ class IPInfoSchema:
             error_log TEXT
         )
     '''
-    
-    # IP 黑名单/白名单表
+
     IP_LISTS_TABLE = '''
         CREATE TABLE IF NOT EXISTS ip_lists (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -90,8 +85,7 @@ class IPInfoSchema:
             UNIQUE(ip_address, list_type)
         )
     '''
-    
-    # 配置表（存储全局设置）
+
     CONFIG_TABLE = '''
         CREATE TABLE IF NOT EXISTS config (
             key TEXT PRIMARY KEY,
@@ -100,8 +94,7 @@ class IPInfoSchema:
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     '''
-    
-    # 所有表的列表（用于批量创建）
+
     TABLES = [
         ('ip_info', IP_INFO_TABLE),
         ('api_keys', API_KEYS_TABLE),
@@ -110,9 +103,7 @@ class IPInfoSchema:
         ('ip_lists', IP_LISTS_TABLE),
         ('config', CONFIG_TABLE),
     ]
-    
-    # ==================== 索引定义 ====================
-    
+
     INDEXES = [
         'CREATE INDEX IF NOT EXISTS idx_ip_address ON ip_info(ip_address)',
         'CREATE INDEX IF NOT EXISTS idx_ip_status ON ip_info(ip_address, status)',
@@ -121,8 +112,6 @@ class IPInfoSchema:
         'CREATE INDEX IF NOT EXISTS idx_batch_task_status ON batch_tasks(status, created_at)',
     ]
 
-
-# ==================== 数据枚举 ====================
 
 class IPStatus:
     """IP 状态"""

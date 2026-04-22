@@ -1,27 +1,38 @@
 <template>
-    <div class="combined-detection">
-        <div class="header-actions">
-            <el-tag type="success" effect="plain" class="status-tag">
-                <el-icon>
-                    <Check />
-                </el-icon>
-                全功能就绪
-            </el-tag>
-            <el-button @click="generateReport" text>
-                <el-icon>
-                    <Document />
-                </el-icon>
-                生成报告
-            </el-button>
-        </div>
+    <div class="combined-detection page-shell">
+        <section class="page-header">
+            <div>
+                <h1 class="page-header__title">综合检测</h1>
+                <p class="page-header__desc">输入目标网址，一次性完成爬取、钓鱼检测与漏洞检测分析。</p>
+            </div>
+            <div class="page-actions">
+                <el-tag type="success" effect="plain" class="status-tag">
+                    <el-icon>
+                        <Check />
+                    </el-icon>
+                    全功能就绪
+                </el-tag>
+                <el-button text @click="generateReport">
+                    <el-icon>
+                        <Document />
+                    </el-icon>
+                    生成报告
+                </el-button>
+            </div>
+        </section>
 
-        <el-card class="input-card" shadow="hover">
-            <h2 class="card-title">🔍 综合安全检测</h2>
-            <p class="card-desc">输入目标URL，执行钓鱼检测和漏洞检测一体化分析</p>
+        <el-card class="input-card" shadow="never">
+            <h2 class="card-title">综合安全检测</h2>
+            <p class="card-desc">输入目标 URL，执行钓鱼检测和漏洞检测一体化分析。</p>
 
             <div class="input-area">
-                <el-input v-model="url" placeholder="输入目标网址 (https://example.com)" size="large" clearable
-                    @keyup.enter="startDetection" />
+                <el-input
+                    v-model="url"
+                    placeholder="输入目标网址 (https://example.com)"
+                    size="large"
+                    clearable
+                    @keyup.enter="startDetection"
+                />
                 <el-button type="primary" :loading="isDetecting" @click="startDetection">
                     <el-icon>
                         <Search />
@@ -31,10 +42,14 @@
             </div>
         </el-card>
 
-        <!-- 进度面板 -->
-        <el-card v-if="isDetecting || showProgress" class="progress-card" shadow="hover">
+        <el-card v-if="isDetecting || showProgress" class="progress-card" shadow="never">
             <template #header>
-                <span class="card-header">检测进度</span>
+                <div class="card-header">
+                    <el-icon>
+                        <Loading />
+                    </el-icon>
+                    <span>检测进度</span>
+                </div>
             </template>
 
             <div class="progress-steps">
@@ -51,17 +66,25 @@
                     <div class="step-content">
                         <div class="step-title">{{ step.title }}</div>
                         <div class="step-status">{{ step.statusText }}</div>
-                        <el-progress :percentage="step.progress" :show-text="false" :stroke-width="6"
-                            :status="step.status === 'completed' ? 'success' : undefined" />
+                        <el-progress
+                            :percentage="step.progress"
+                            :show-text="false"
+                            :stroke-width="6"
+                            :status="step.status === 'completed' ? 'success' : undefined"
+                        />
                     </div>
                 </div>
             </div>
         </el-card>
 
-        <!-- 结果面板 -->
-        <el-card v-if="result" class="result-card" shadow="hover">
+        <el-card v-if="result" class="result-card" shadow="never">
             <template #header>
-                <span class="card-header">检测结果</span>
+                <div class="card-header">
+                    <el-icon>
+                        <Check />
+                    </el-icon>
+                    <span>检测结果</span>
+                </div>
             </template>
 
             <div class="result-summary">
@@ -82,9 +105,10 @@
                 </div>
             </div>
 
-            <!-- 爬虫信息 -->
-            <div v-if="crawlInfo" class="crawl-info">
-                <el-divider content-position="left">网站信息</el-divider>
+            <div v-if="crawlInfo" class="crawl-info section-block">
+                <div class="section-title">
+                    <span>网站信息</span>
+                </div>
                 <div class="info-grid">
                     <div class="info-item">
                         <span class="info-label">抓取页面</span>
@@ -105,9 +129,10 @@
                 </div>
             </div>
 
-            <!-- 漏洞详情 -->
-            <div v-if="totalVulns > 0" class="vuln-details">
-                <el-divider content-position="left">漏洞详情</el-divider>
+            <div v-if="totalVulns > 0" class="vuln-details section-block">
+                <div class="section-title">
+                    <span>漏洞详情</span>
+                </div>
                 <div class="detail-grid">
                     <div class="detail-item">
                         <span class="detail-label">源码漏洞</span>
@@ -130,7 +155,6 @@
                 </div>
             </div>
 
-            <!-- 总体评估 -->
             <div class="overall-assessment" :class="overallRiskClass">
                 <div class="assessment-header">
                     <span class="assessment-label">总体评估</span>
@@ -252,23 +276,19 @@ const startDetection = async () => {
     })
 
     try {
-        // 模拟步骤1：爬虫抓取
         updateStep('crawl', 'processing', 30, '正在抓取...')
         await new Promise(r => setTimeout(r, 1500))
         updateStep('crawl', 'completed', 100, '完成')
         crawlInfo.value = { pages: 5, links: 23, forms: 2, lang: 'html' }
 
-        // 模拟步骤2：钓鱼检测
         updateStep('phishing', 'processing', 50, '分析中...')
         await new Promise(r => setTimeout(r, 1500))
         updateStep('phishing', 'completed', 100, '完成')
 
-        // 模拟步骤3：漏洞检测
         updateStep('vuln', 'processing', 60, '扫描中...')
         await new Promise(r => setTimeout(r, 2000))
         updateStep('vuln', 'completed', 100, '完成')
 
-        // 模拟结果
         result.value = {
             phishing: { final: Math.random() * 0.8, risk_score: Math.random() * 0.8 },
             code: { vulnerabilities: Math.random() > 0.7 ? [{ type: 'SQL注入' }] : [] },
@@ -300,430 +320,241 @@ const generateReport = () => {
 
 <style lang="scss" scoped>
 @use '@/styles/variables.scss' as *;
+@use '@/styles/mixins.scss' as *;
 
 .combined-detection {
-    max-width: 1024px;
-    margin: 0 auto;
-
-    .header-actions {
+    .page-actions {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: 1.5rem;
-        transition: all 0.2s ease;
+        gap: $space-3;
+        flex-wrap: wrap;
+    }
 
-        .status-tag {
-            padding: 0.5rem 1rem;
-            border-radius: 9999px;
-            transition: all 0.2s ease;
-
-            &:hover {
-                transform: scale(1.05);
-                box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
-            }
-        }
-
-        :deep(.el-button) {
-            transition: all 0.2s ease;
-
-            &:hover:not(:disabled) {
-                transform: translateY(-2px);
-                filter: brightness(1.05);
-            }
-
-            &:active:not(:disabled) {
-                transform: translateY(0);
-            }
-        }
+    .status-tag {
+        padding: 0.5rem 0.875rem;
+        border-radius: 999px;
     }
 
     .input-card,
     .progress-card,
     .result-card {
-        margin-bottom: 1.5rem;
-        background: rgba(255, 255, 255, 0.6);
-        backdrop-filter: blur(16px);
-        transition: all 0.2s ease;
-        border: 1px solid rgba(79, 70, 229, 0.2);
+        @include app-card;
+    }
 
-        &:hover {
-            box-shadow: 0 12px 24px -8px rgba(79, 70, 229, 0.15);
-            border-color: rgba(79, 70, 229, 0.3);
-        }
+    .card-title {
+        @include clamp-title(1.375rem);
+        margin: 0 0 $space-2;
+    }
 
-        .card-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-            transition: all 0.2s ease;
+    .card-desc {
+        margin: 0 0 $space-5;
+        color: $text-secondary;
+        line-height: 1.6;
+    }
 
-            &:hover {
-                color: $primary;
-            }
-        }
+    .card-header,
+    .section-title {
+        @include app-card-header;
+    }
 
-        .card-desc {
-            color: #6b7280;
-            margin-bottom: 1.5rem;
-        }
-
-        .input-area {
-            display: flex;
-            gap: 1rem;
-            transition: all 0.2s ease;
-
-            .el-input {
-                flex: 1;
-                transition: all 0.2s ease;
-
-                :deep(.el-input__wrapper) {
-                    transition: all 0.2s ease;
-
-                    &:hover,
-                    &:focus-within {
-                        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1),
-                                    0 0 12px rgba(79, 70, 229, 0.2);
-                    }
-                }
-            }
-
-            :deep(.el-button) {
-                transition: all 0.2s ease;
-
-                &:hover:not(:disabled) {
-                    transform: translateY(-2px);
-                    filter: brightness(1.05);
-                }
-
-                &:active:not(:disabled) {
-                    transform: translateY(0);
-                }
-            }
-        }
-
-        .card-header {
-            font-weight: 600;
-            transition: all 0.2s ease;
-
-            &:hover {
-                color: $primary;
-            }
-        }
+    .input-area {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: $space-3;
+        align-items: center;
     }
 
     .progress-steps {
-        .step-item {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-            padding: 12px;
-            border-radius: 8px;
-            transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        gap: $space-4;
+    }
 
-            &:hover {
-                background: rgba(79, 70, 229, 0.05);
-                transform: translateX(4px);
+    .step-item {
+        display: flex;
+        gap: $space-4;
+        align-items: flex-start;
+        padding: $space-4;
+        border: 1px solid rgba(24, 144, 255, 0.08);
+        border-radius: $radius-md;
+        background: $surface-muted;
+    }
+
+    .step-icon {
+        width: 2.125rem;
+        height: 2.125rem;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 0.875rem;
+        font-weight: 700;
+
+        &.pending {
+            background: #eef2f7;
+            color: $text-muted;
+        }
+
+        &.processing {
+            background: rgba(24, 144, 255, 0.12);
+            color: $primary-active;
+
+            :deep(.el-icon) {
+                animation: spin 1s linear infinite;
             }
+        }
 
-            &:last-child {
-                margin-bottom: 0;
-            }
-
-            .step-icon {
-                width: 32px;
-                height: 32px;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 0.875rem;
-                font-weight: 600;
-                flex-shrink: 0;
-                transition: all 0.2s ease;
-
-                &.pending {
-                    background: #f3f4f6;
-                    color: #9ca3af;
-                }
-
-                &.processing {
-                    background: #3b82f6;
-                    color: white;
-                    animation: spin 1s linear infinite;
-                    box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
-                }
-
-                &.completed {
-                    background: #10b981;
-                    color: white;
-                    transform: scale(1.05);
-                    box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
-                }
-
-                .step-number {
-                    font-size: 0.875rem;
-                    font-weight: 600;
-                }
-            }
-
-            .step-content {
-                flex: 1;
-                transition: all 0.2s ease;
-
-                .step-title {
-                    font-weight: 500;
-                    margin-bottom: 0.25rem;
-                    transition: all 0.2s ease;
-                }
-
-                .step-status {
-                    font-size: 0.75rem;
-                    color: #6b7280;
-                    margin-bottom: 0.5rem;
-                }
-            }
+        &.completed {
+            background: rgba(82, 196, 26, 0.14);
+            color: $success;
         }
     }
 
-    .result-summary {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
-        margin-bottom: 1.5rem;
-
-        .summary-item {
-            text-align: center;
-            padding: 1rem;
-            background: rgba(0, 0, 0, 0.02);
-            border-radius: 0.75rem;
-            transition: all 0.2s ease;
-            cursor: pointer;
-
-            &:hover {
-                background: rgba(79, 70, 229, 0.05);
-                transform: translateY(-4px);
-                box-shadow: 0 8px 16px rgba(79, 70, 229, 0.1);
-            }
-
-            .summary-label {
-                font-size: 0.875rem;
-                color: #6b7280;
-                margin-bottom: 0.5rem;
-                transition: all 0.2s ease;
-            }
-
-            .summary-value {
-                font-size: 2rem;
-                font-weight: 700;
-                transition: all 0.2s ease;
-
-                &.text-danger {
-                    color: #ef4444;
-                }
-
-                &.text-warning {
-                    color: #f59e0b;
-                }
-
-                &.text-success {
-                    color: #10b981;
-                }
-            }
-
-            .summary-detail {
-                font-size: 0.75rem;
-                color: #9ca3af;
-                margin-top: 0.25rem;
-                transition: all 0.2s ease;
-            }
-        }
+    .step-content {
+        flex: 1;
+        min-width: 0;
     }
 
-    .crawl-info {
-        animation: slideInDown 0.3s ease-out;
-
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1rem;
-
-            .info-item {
-                text-align: center;
-                padding: 12px;
-                background: rgba(79, 70, 229, 0.02);
-                border-radius: 8px;
-                transition: all 0.2s ease;
-
-                &:hover {
-                    background: rgba(79, 70, 229, 0.05);
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
-                }
-
-                .info-label {
-                    font-size: 0.75rem;
-                    color: #6b7280;
-                    display: block;
-                    margin-bottom: 0.25rem;
-                    transition: all 0.2s ease;
-                }
-
-                .info-value {
-                    font-size: 1.25rem;
-                    font-weight: 600;
-                    transition: all 0.2s ease;
-                }
-            }
-        }
+    .step-title {
+        font-weight: 600;
+        color: $text-primary;
+        margin-bottom: $space-1;
     }
 
-    .vuln-details {
-        animation: slideInDown 0.3s ease-out;
+    .step-status {
+        font-size: 0.8125rem;
+        color: $text-secondary;
+        margin-bottom: $space-2;
+    }
 
-        .detail-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1rem;
+    .result-summary,
+    .info-grid,
+    .detail-grid {
+        @include info-grid(180px);
+    }
 
-            .detail-item {
-                text-align: center;
-                padding: 12px;
-                background: rgba(79, 70, 229, 0.02);
-                border-radius: 8px;
-                transition: all 0.2s ease;
+    .summary-item,
+    .info-item,
+    .detail-item {
+        @include stat-tile;
+        text-align: center;
+    }
 
-                &:hover {
-                    background: rgba(79, 70, 229, 0.05);
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
-                }
+    .summary-label,
+    .info-label,
+    .detail-label {
+        display: block;
+        margin-bottom: $space-2;
+        color: $text-secondary;
+        font-size: 0.8125rem;
+    }
 
-                .detail-label {
-                    font-size: 0.75rem;
-                    color: #6b7280;
-                    display: block;
-                    margin-bottom: 0.25rem;
-                    transition: all 0.2s ease;
-                }
+    .summary-value,
+    .info-value,
+    .detail-value {
+        display: block;
+        font-weight: 700;
+        color: $text-primary;
+    }
 
-                .detail-value {
-                    font-size: 1rem;
-                    font-weight: 600;
-                    transition: all 0.2s ease;
+    .summary-value {
+        font-size: 1.875rem;
+    }
 
-                    &.text-danger {
-                        color: #ef4444;
-                    }
+    .info-value {
+        font-size: 1.25rem;
+    }
 
-                    &.text-success {
-                        color: #10b981;
-                    }
-                }
-            }
-        }
+    .detail-value {
+        font-size: 1rem;
+    }
+
+    .summary-detail {
+        margin-top: $space-2;
+        font-size: 0.8125rem;
+        color: $text-muted;
+    }
+
+    .section-block {
+        margin-top: $space-6;
     }
 
     .overall-assessment {
-        margin-top: 1.5rem;
-        padding: 1rem;
-        border-radius: 0.75rem;
-        transition: all 0.2s ease;
-        animation: slideInUp 0.3s ease-out;
+        margin-top: $space-6;
+        padding: $space-5;
+        border-radius: $radius-lg;
+        border: 1px solid $border;
 
         &.risk-safe {
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid #10b981;
-
-            &:hover {
-                box-shadow: 0 8px 16px rgba(16, 185, 129, 0.2);
-                transform: translateY(-2px);
-            }
+            background: rgba(82, 196, 26, 0.08);
+            border-color: rgba(82, 196, 26, 0.24);
         }
 
         &.risk-medium {
-            background: rgba(245, 158, 11, 0.1);
-            border: 1px solid #f59e0b;
-
-            &:hover {
-                box-shadow: 0 8px 16px rgba(245, 158, 11, 0.2);
-                transform: translateY(-2px);
-            }
+            background: rgba(250, 173, 20, 0.1);
+            border-color: rgba(250, 173, 20, 0.28);
         }
 
         &.risk-critical {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid #ef4444;
+            background: rgba(255, 77, 79, 0.08);
+            border-color: rgba(255, 77, 79, 0.26);
+        }
+    }
 
-            &:hover {
-                box-shadow: 0 8px 16px rgba(239, 68, 68, 0.2);
-                transform: translateY(-2px);
-            }
+    .assessment-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: $space-3;
+        margin-bottom: $space-2;
+    }
+
+    .assessment-label,
+    .assessment-badge {
+        font-weight: 700;
+        color: $text-primary;
+    }
+
+    .assessment-desc {
+        margin: 0;
+        color: $text-secondary;
+        line-height: 1.6;
+    }
+
+    .text-danger {
+        color: $danger;
+    }
+
+    .text-warning {
+        color: $warning;
+    }
+
+    .text-success {
+        color: $success;
+    }
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (max-width: $breakpoint-md) {
+    .combined-detection {
+        .input-area {
+            grid-template-columns: 1fr;
         }
 
         .assessment-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
-            transition: all 0.2s ease;
-
-            .assessment-label {
-                font-weight: 600;
-                transition: all 0.2s ease;
-            }
-
-            .assessment-badge {
-                font-size: 0.875rem;
-                font-weight: 600;
-                transition: all 0.2s ease;
-            }
+            align-items: flex-start;
+            flex-direction: column;
         }
-
-        .assessment-desc {
-            font-size: 0.875rem;
-            margin: 0;
-            transition: all 0.2s ease;
-        }
-    }
-}
-
-@keyframes slideInDown {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes slideInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
-}
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
     }
 }
 </style>

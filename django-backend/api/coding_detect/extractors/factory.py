@@ -7,13 +7,20 @@
 
 import logging
 from typing import Dict, Optional
-from pathlib import Path
 
 from .base import BaseCodeExtractor
 from .python import PythonCodeExtractor
 from .c import CCodeExtractor
 from .cpp import CPPCodeExtractor
 from .java import JavaCodeExtractor
+from .go import GoCodeExtractor
+from .rust import RustCodeExtractor
+from .javascript import JavaScriptCodeExtractor
+from .typescript import TypeScriptCodeExtractor
+from .php import PHPCodeExtractor
+from .ruby import RubyCodeExtractor
+from .html import HTMLCodeExtractor
+from .file_types import EXTENSION_LANGUAGE_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +39,13 @@ class ExtractorFactory:
             CCodeExtractor(),
             CPPCodeExtractor(),
             JavaCodeExtractor(),
+            GoCodeExtractor(),
+            RustCodeExtractor(),
+            JavaScriptCodeExtractor(),
+            TypeScriptCodeExtractor(),
+            PHPCodeExtractor(),
+            RubyCodeExtractor(),
+            HTMLCodeExtractor(),
         ]
         
         for extractor in extractors:
@@ -61,25 +75,10 @@ class ExtractorFactory:
         Returns:
             提取器实例，如果不支持则返回None
         """
-        ext = Path(file_path).suffix.lower()
-        
-        # 根据扩展名匹配语言
-        extension_map = {
-            '.py': 'python',
-            '.pyw': 'python',
-            '.pyi': 'python',
-            '.c': 'c',
-            '.h': 'c',
-            '.cpp': 'cpp',
-            '.cc': 'cpp',
-            '.cxx': 'cpp',
-            '.hpp': 'cpp',
-            '.hxx': 'cpp',
-            '.hh': 'cpp',
-            '.java': 'java',
-        }
-        
-        language = extension_map.get(ext)
+        ext = file_path.rsplit('.', 1)
+        ext = f".{ext[-1].lower()}" if len(ext) > 1 else ''
+
+        language = EXTENSION_LANGUAGE_MAP.get(ext)
         if language:
             return self.get_extractor(language)
         

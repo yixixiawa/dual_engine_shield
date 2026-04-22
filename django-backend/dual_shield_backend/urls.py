@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-URL configuration for dual_shield_backend project.
-主路由文件 - 定义所有API端点
-"""
 from django.urls import path, include, re_path
 from django.views.generic import TemplateView
 from rest_framework import routers
@@ -10,6 +5,10 @@ from drf_spectacular.views import SpectacularSwaggerView, SpectacularRedocView, 
 from api import views
 from api.phishing import phishing_views
 from api.ipinfo import ipinfo_views
+from api.views.geo_phishing import (
+    GeoPhishingLocationViewSet,
+    GeoPhishingStatisticsViewSet,
+)
 
 # 创建路由器
 router = routers.DefaultRouter()
@@ -20,10 +19,6 @@ router.register(r'vulnerabilities', views.VulnerabilityDetectionViewSet, basenam
 router.register(r'tasks', views.DirectoryScanTaskViewSet, basename='tasks')
 router.register(r'config', views.SystemConfigViewSet, basename='config')
 
-# 地理位置钓鱼追踪路由
-router.register(r'geo-phishing/locations', views.GeoPhishingLocationViewSet, basename='geo-phishing-locations')
-router.register(r'geo-phishing/statistics', views.GeoPhishingStatisticsViewSet, basename='geo-phishing-statistics')
-
 urlpatterns = [
     # 主 API 路由
     path('api/', include(router.urls)),
@@ -32,18 +27,18 @@ urlpatterns = [
     path('api/health/', views.HealthCheckView.as_view(), name='health-check'),
 
     # 检测相关 API
-    path('api/detect/phishing/', views.PhishingDetectView.as_view(), name='phishing-detect'),
     path('api/detect/code/', views.CodeVulnerabilityDetectView.as_view(), name='code-detect'),
     path('api/detect/batch-code/', views.BatchCodeVulnerabilityDetectView.as_view(), name='batch-code-detect'),
     path('api/detect/file/', views.FileScanView.as_view(), name='file-scan'),
     path('api/detect/directory/', views.DirectoryScanView.as_view(), name='directory-scan'),
+    path('api/detect/comprehensive/', views.ComprehensiveDetectView.as_view(), name='comprehensive-detect'),
 
     # 钓鱼检测 API (GTE 双模型)
     path('api/detect/fish/', phishing_views.PhishingDetectView.as_view(), name='fish-detect'),
     path('api/detect/batch-fish/', phishing_views.PhishingBatchDetectView.as_view(), name='batch-fish-detect'),
     path('api/detect/fish-config/', phishing_views.PhishingConfigView.as_view(), name='fish-config'),
     path('api/detect/phishing-track/', phishing_views.PhishingAndGeoTrackView.as_view(), name='phishing-track'),
-    
+
     # 检测任务查询 API
     path('api/detect/fish-task/', phishing_views.PhishingDetectionTaskView.as_view(), name='fish-task-query'),
     path('api/detect/fish-task/<int:task_id>/', phishing_views.PhishingDetectionTaskView.as_view(), name='fish-task-detail'),
@@ -56,12 +51,19 @@ urlpatterns = [
     path('api/ipinfo/save/', ipinfo_views.IPInfoSaveView.as_view(), name='ipinfo-save'),
     path('api/ipinfo/batch-save/', ipinfo_views.BatchIPInfoSaveView.as_view(), name='ipinfo-batch-save'),
     path('api/ipinfo/all/', ipinfo_views.AllIPInfoView.as_view(), name='ipinfo-all'),
-    
+
     # 域名查询 API（域名转 IP + 地理信息）
     path('api/ipinfo/domain/', ipinfo_views.DomainQueryView.as_view(), name='domain-query'),
-    
-    # 地理位置钓鱼追踪 API
-    path('api/geo-phishing/sync/', views.GeoLocationSyncView.as_view(), name='geo-sync'),
+
+    # 地理位置钓鱼追踪 API (直接使用 path 注册，避免与 router 冲突)
+    path('api/geo-phishing/locations/', GeoPhishingLocationViewSet.as_view(), name='geo-phishing-locations'),
+    path('api/geo-phishing/locations/map/', GeoPhishingLocationViewSet.as_view(), {'action': 'map'}, name='geo-phishing-map'),
+    path('api/geo-phishing/locations/hot_spots/', GeoPhishingLocationViewSet.as_view(), {'action': 'hot_spots'}, name='geo-phishing-hot-spots'),
+    path('api/geo-phishing/locations/by_country/', GeoPhishingLocationViewSet.as_view(), {'action': 'by_country'}, name='geo-phishing-by-country'),
+    path('api/geo-phishing/locations/statistics/', GeoPhishingLocationViewSet.as_view(), {'action': 'statistics'}, name='geo-phishing-statistics'),
+    path('api/geo-phishing/locations/<int:pk>/', GeoPhishingLocationViewSet.as_view(), name='geo-phishing-detail'),
+    path('api/geo-phishing/statistics/', GeoPhishingStatisticsViewSet.as_view(), name='geo-phishing-stats'),
+    path('api/geo-phishing/statistics/sync/', GeoPhishingStatisticsViewSet.as_view(), {'action': 'sync'}, name='geo-phishing-sync'),
 
     # 任务管理 API
     path('api/tasks/<str:task_id>/', views.TaskDetailView.as_view(), name='task-detail'),
@@ -77,8 +79,3 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
-
-# 可选：添加前端路由（如果前端部署在同一服务器）
-# urlpatterns += [
-#     re_path(r'^.*/$', TemplateView.as_view(template_name='index.html')),
-# ]

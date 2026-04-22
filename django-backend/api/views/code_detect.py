@@ -349,7 +349,11 @@ class FileScanView(views.APIView):
                         vuln_list = [
                             {
                                 'cwe_id': v.cwe_id if hasattr(v, 'cwe_id') else '',
-                                'severity': v.severity if hasattr(v, 'severity') else 'medium',
+                                'severity': (
+                                    v.severity.value
+                                    if hasattr(v, 'severity') and hasattr(v.severity, 'value')
+                                    else (v.severity if hasattr(v, 'severity') else 'medium')
+                                ),
                                 'description': v.description if hasattr(v, 'description') else '',
                                 'confidence': v.confidence if hasattr(v, 'confidence') else 0.0,
                             }
@@ -471,3 +475,155 @@ class DirectoryScanView(views.APIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class ComprehensiveDetectView(views.APIView):
+    """综合检测API视图 - 结合代码漏洞检测和钓鱼检测"""
+    
+    def post(self, request):
+        """执行综合检测"""
+        try:
+            data = request.data
+            url = data.get('url', '').strip()
+            
+            if not url:
+                return Response(
+                    {"error": "url 是必需的"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # 规范化 URL
+            if not url.startswith(('http://', 'https://')):
+                url = 'https://' + url
+            
+            # 步骤1: 获取HTML内容
+            import requests
+            from requests.exceptions import SSLError
+            html_content = ""
+            try:
+                logger.info(f"正在从 URL 获取 HTML 内容: {url}")
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+                response = requests.get(url, headers=headers, timeout=10)
+                response.encoding = response.apparent_encoding or 'utf-8'
+                html_content = response.text
+                logger.info(f"成功获取 HTML，长度: {len(html_content)} 字符")
+            except SSLError as e:
+                logger.warning(f"SSL证书验证失败: {str(e)}")
+                # 尝试使用HTTP (80端口)获取
+                http_url = url.replace('https://', 'http://')
+                logger.info(f"尝试使用 HTTP 获取 HTML 内容: {http_url}")
+                try:
+                    response = requests.get(http_url, headers=headers, timeout=10)
+                    response.encoding = response.apparent_encoding or 'utf-8'
+                    html_content = response.text
+                    logger.info(f"成功通过 HTTP 获取 HTML，长度: {len(html_content)} 字符")
+                except requests.RequestException as e:
+                    logger.warning(f"从 HTTP URL 获取 HTML 失败: {str(e)}")
+            except requests.RequestException as e:
+                logger.warning(f"从 URL 获取 HTML 失败: {str(e)}")
+            except Exception as e:
+                logger.error(f"获取 HTML 时发生错误: {str(e)}")
+            
+            # 步骤2: 钓鱼检测
+            from api.phishing.phishing_views import get_phishing_service
+            phishing_result = {}
+            try:
+                phishing_service = get_phishing_service()
+                phishing_result = phishing_service.analyze(url, html_content)
+                logger.info(f"钓鱼检测完成: is_phishing={phishing_result.get('is_phishing')}, score={phishing_result.get('score')}")
+            except Exception as e:
+                logger.error(f"钓鱼检测失败: {str(e)}")
+                phishing_result = {'error': str(e)}
+            
+            # 步骤3: 代码漏洞检测 (针对HTML内容)
+            code_vulnerabilities = []
+            try:
+                if CODING_DETECT_AVAILABLE:
+                    detector = get_vulnerability_detector()
+                    if detector:
+                        # 使用HTML语言进行检测
+                        result = detector.detect(html_content, 'html')
+                        code_vulnerabilities = self._format_detector_result(result)
+                        logger.info(f"代码漏洞检测完成: 发现 {len(code_vulnerabilities)} 个漏洞")
+                    else:
+                        logger.warning("⚠️  代码检测器未初始化")
+                else:
+                    logger.warning("⚠️  coding_detect 模块不可用")
+            except Exception as e:
+                logger.error(f"代码漏洞检测失败: {str(e)}")
+            
+            # 步骤4: 综合风险评估
+            comprehensive_risk = self._calculate_comprehensive_risk(phishing_result, code_vulnerabilities)
+            
+            # 构建响应
+            response_data = {
+                'url': url,
+                'phishing_detection': phishing_result,
+                'code_vulnerabilities': code_vulnerabilities,
+                'comprehensive_risk': comprehensive_risk,
+                'total_vulnerabilities': len(code_vulnerabilities),
+                'is_phishing': phishing_result.get('is_phishing', False),
+                'is_vulnerable': len(code_vulnerabilities) > 0
+            }
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"综合检测失败: {str(e)}")
+            return Response(
+                {"error": f"Comprehensive detection failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @staticmethod
+    def _calculate_comprehensive_risk(phishing_result, code_vulnerabilities):
+        """计算综合风险评分"""
+        # 初始化风险分数
+        total_risk = 0.0
+        
+        # 钓鱼检测风险 (权重 0.6)
+        phishing_score = phishing_result.get('score', 0.0) or 0.0
+        phishing_weight = 0.6
+        
+        # 代码漏洞风险 (权重 0.4)
+        code_risk = 0.0
+        if code_vulnerabilities:
+            # 计算代码漏洞的严重程度
+            severity_scores = {
+                'critical': 1.0,
+                'high': 0.8,
+                'medium': 0.5,
+                'low': 0.2
+            }
+            
+            for vuln in code_vulnerabilities:
+                severity = vuln.get('severity', 'medium')
+                code_risk += severity_scores.get(severity, 0.5)
+            
+            # 归一化代码风险分数
+            code_risk = min(code_risk / len(code_vulnerabilities), 1.0) if code_vulnerabilities else 0.0
+        code_weight = 0.4
+        
+        # 计算综合风险
+        total_risk = (phishing_score * phishing_weight) + (code_risk * code_weight)
+        total_risk = round(total_risk, 4)
+        
+        # 确定风险等级
+        risk_level = 'low'
+        if total_risk >= 0.8:
+            risk_level = 'critical'
+        elif total_risk >= 0.6:
+            risk_level = 'high'
+        elif total_risk >= 0.4:
+            risk_level = 'medium'
+        
+        return {
+            'score': total_risk,
+            'level': risk_level,
+            'phishing_contribution': round(phishing_score * phishing_weight, 4),
+            'code_contribution': round(code_risk * code_weight, 4),
+            'total_vulnerabilities': len(code_vulnerabilities),
+            'is_phishing': phishing_result.get('is_phishing', False)
+        }

@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
 from api.db import get_ipinfo_db
-from model.ipinfo_models import APIProvider
+from api.models.ipinfo_models import APIProvider
 
 
 class Command(BaseCommand):

@@ -169,6 +169,7 @@ class GeoPhishingLocationSerializer(serializers.ModelSerializer):
     """地理位置钓鱼追踪序列化器"""
     
     phishing_detection_detail = serializers.SerializerMethodField()
+    risk_score = serializers.SerializerMethodField()
     
     class Meta:
         model = GeoPhishingLocation
@@ -190,10 +191,18 @@ class GeoPhishingLocationSerializer(serializers.ModelSerializer):
         if obj.phishing_detection:
             return PhishingDetectionSerializer(obj.phishing_detection).data
         return None
+    
+    def get_risk_score(self, obj):
+        """将风险分数保留两位小数"""
+        if obj.risk_score is not None:
+            return round(obj.risk_score, 2)
+        return 0.0
 
 
 class GeoPhishingLocationListSerializer(serializers.ModelSerializer):
     """地理位置钓鱼追踪列表序列化器（精简版）"""
+    
+    risk_score = serializers.SerializerMethodField()
     
     class Meta:
         model = GeoPhishingLocation
@@ -203,10 +212,18 @@ class GeoPhishingLocationListSerializer(serializers.ModelSerializer):
             'threat_level', 'is_phishing', 'risk_score',
             'last_seen'
         ]
+    
+    def get_risk_score(self, obj):
+        """将风险分数保留两位小数"""
+        if obj.risk_score is not None:
+            return round(obj.risk_score, 2)
+        return 0.0
 
 
 class GeoPhishingLocationMapSerializer(serializers.ModelSerializer):
     """地理位置钓鱼追踪地图序列化器（用于前端globestream可视化）"""
+    
+    risk_score = serializers.SerializerMethodField()
     
     class Meta:
         model = GeoPhishingLocation
@@ -216,6 +233,12 @@ class GeoPhishingLocationMapSerializer(serializers.ModelSerializer):
             'threat_level', 'is_phishing', 'risk_score',
             'confidence', 'detection_count'
         ]
+    
+    def get_risk_score(self, obj):
+        """将风险分数保留两位小数"""
+        if obj.risk_score is not None:
+            return round(obj.risk_score, 2)
+        return 0.0
 
 
 class GeoPhishingStatisticsSerializer(serializers.ModelSerializer):

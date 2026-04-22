@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 导入简洁版表结构（model/ 中无内联索引，api/ 中有内联索引会导致 SQLite 错误）
 # SQLite 不支持在 CREATE TABLE 中定义索引，必须使用单独的 CREATE INDEX 语句
-from model.ipinfo_models import IPInfoSchema, IPStatus, APIProvider, TaskStatus, ListType
+from api.models.ipinfo_models import IPInfoSchema, IPStatus, APIProvider, TaskStatus, ListType
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +38,7 @@ class IPInfo:
     timezone: Optional[str] = None
     hostname: Optional[str] = None
     asn: Optional[str] = None
+    risk_score: float = 0.0
     status: str = "active"
     
 class IPInfoDatabase:
@@ -111,47 +112,125 @@ class IPInfoDatabase:
                     # 索引可能已存在，不记录为错误
                     if 'already exists' not in str(e).lower():
                         logger.debug(f"Index creation info: {str(e)}")
+
+            # 兼容旧版数据库结构（历史库可能缺少部分列）
+            self._ensure_schema_compatibility(cursor)
             
             print("[OK] IPinfo database tables initialized successfully (数据库初始化完成)")
+
+    def _get_table_columns(self, cursor, table_name: str) -> set:
+        """获取表的全部列名（兼容旧版 SQLite 结构检查）"""
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        rows = cursor.fetchall()
+        return {row['name'] for row in rows}
+
+    def _ensure_schema_compatibility(self, cursor):
+        """为旧版 ipinfo.db 自动补齐缺失列，避免运行时插入失败。"""
+        try:
+            query_history_cols = self._get_table_columns(cursor, 'query_history')
+
+            # 旧表可能缺少 api_key_id / api_endpoint
+            if 'api_key_id' not in query_history_cols:
+                cursor.execute('ALTER TABLE query_history ADD COLUMN api_key_id INTEGER')
+                logger.info("[OK] Added missing column query_history.api_key_id")
+            if 'api_endpoint' not in query_history_cols:
+                cursor.execute('ALTER TABLE query_history ADD COLUMN api_endpoint TEXT')
+                logger.info("[OK] Added missing column query_history.api_endpoint")
+            
+            # 为 ip_info 表添加 risk_score 列（如果不存在）
+            ip_info_cols = self._get_table_columns(cursor, 'ip_info')
+            if 'risk_score' not in ip_info_cols:
+                cursor.execute('ALTER TABLE ip_info ADD COLUMN risk_score REAL DEFAULT 0.0')
+                logger.info("[OK] Added missing column ip_info.risk_score")
+                
+        except Exception as e:
+            logger.warning(f"[WARN] Schema compatibility check failed: {e}")
 
     
     # ==================== IP 信息管理 ====================
     
     def save_ip_info(self, ip_data: Dict[str, Any], raw_response: str = None) -> int:
         """保存或更新 IP 信息"""
+        # 兼容两类输入：IPinfo 原始响应使用 ip，手工保存接口使用 ip_address
+        ip_address = ip_data.get('ip') or ip_data.get('ip_address')
+        if not ip_address:
+            raise ValueError('缺少必填字段: ip/ip_address')
+
+        asn_value = ip_data.get('asn', {})
+        if isinstance(asn_value, str):
+            asn_serialized = asn_value
+        else:
+            asn_serialized = json.dumps(asn_value)
+
+        # 提取风险分数
+        risk_score = ip_data.get('risk_score', 0.0)
+
         with self.get_cursor() as cursor:
             cursor.execute('SELECT id, query_count FROM ip_info WHERE ip_address = ?', 
-                          (ip_data.get('ip'),))
+                          (ip_address,))
             existing = cursor.fetchone()
             
             if existing:
-                cursor.execute('''
-                    UPDATE ip_info 
-                    SET city = ?, region = ?, country = ?, loc = ?, org = ?,
-                        postal = ?, timezone = ?, hostname = ?, asn = ?,
-                        query_count = query_count + 1,
-                        last_updated = CURRENT_TIMESTAMP,
-                        raw_response = ?
-                    WHERE ip_address = ?
-                ''', (
-                    ip_data.get('city'), ip_data.get('region'), ip_data.get('country'),
-                    ip_data.get('loc'), ip_data.get('org'), ip_data.get('postal'),
-                    ip_data.get('timezone'), ip_data.get('hostname'), 
-                    json.dumps(ip_data.get('asn', {})), raw_response,
-                    ip_data.get('ip')
-                ))
+                # 构建更新语句，只更新提供的字段
+                update_fields = []
+                update_values = []
+                
+                if 'city' in ip_data:
+                    update_fields.append('city = ?')
+                    update_values.append(ip_data['city'])
+                if 'region' in ip_data:
+                    update_fields.append('region = ?')
+                    update_values.append(ip_data['region'])
+                if 'country' in ip_data:
+                    update_fields.append('country = ?')
+                    update_values.append(ip_data['country'])
+                if 'loc' in ip_data:
+                    update_fields.append('loc = ?')
+                    update_values.append(ip_data['loc'])
+                if 'org' in ip_data:
+                    update_fields.append('org = ?')
+                    update_values.append(ip_data['org'])
+                if 'postal' in ip_data:
+                    update_fields.append('postal = ?')
+                    update_values.append(ip_data['postal'])
+                if 'timezone' in ip_data:
+                    update_fields.append('timezone = ?')
+                    update_values.append(ip_data['timezone'])
+                if 'hostname' in ip_data:
+                    update_fields.append('hostname = ?')
+                    update_values.append(ip_data['hostname'])
+                if 'asn' in ip_data:
+                    update_fields.append('asn = ?')
+                    update_values.append(asn_serialized)
+                if 'risk_score' in ip_data:
+                    update_fields.append('risk_score = ?')
+                    update_values.append(risk_score)
+                
+                # 总是更新的字段
+                update_fields.extend(['query_count = query_count + 1', 'last_updated = CURRENT_TIMESTAMP'])
+                if raw_response is not None:
+                    update_fields.append('raw_response = ?')
+                    update_values.append(raw_response)
+                
+                if update_fields:
+                    update_sql = f"UPDATE ip_info SET {', '.join(update_fields)} WHERE ip_address = ?"
+                    update_values.append(ip_address)
+                    cursor.execute(update_sql, update_values)
+                
                 return existing['id']
             else:
-                cursor.execute('''
+                # 插入新记录
+                insert_sql = '''
                     INSERT INTO ip_info (
                         ip_address, city, region, country, loc, org, 
-                        postal, timezone, hostname, asn, raw_response
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    ip_data.get('ip'), ip_data.get('city'), ip_data.get('region'),
+                        postal, timezone, hostname, asn, risk_score, raw_response
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                '''
+                cursor.execute(insert_sql, (
+                    ip_address, ip_data.get('city'), ip_data.get('region'),
                     ip_data.get('country'), ip_data.get('loc'), ip_data.get('org'),
                     ip_data.get('postal'), ip_data.get('timezone'), ip_data.get('hostname'),
-                    json.dumps(ip_data.get('asn', {})), raw_response
+                    asn_serialized, risk_score, raw_response
                 ))
                 return cursor.lastrowid
     

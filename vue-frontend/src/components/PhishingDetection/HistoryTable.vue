@@ -123,15 +123,14 @@ const clearHistory = () => {
 </script>
 
 <style lang="scss" scoped>
+@use '@/styles/variables.scss' as *;
+@use '@/styles/mixins.scss' as *;
+
 .history-card {
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(16px);
+    @include app-card;
 
     .card-header {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-weight: 500;
+        @include app-card-header;
 
         .el-button {
             margin-left: auto;
@@ -139,34 +138,22 @@ const clearHistory = () => {
     }
 
     .empty-state {
-        padding: 2rem;
+        padding: $space-8 0;
     }
 
     .url-text {
-        font-family: monospace;
-        font-size: 0.75rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.8125rem;
     }
 
     .score-value {
-        font-weight: 600;
-        font-family: monospace;
+        font-weight: 700;
+        font-family: 'JetBrains Mono', monospace;
     }
 
     .threat-text {
-        font-size: 0.75rem;
-        color: #6b7280;
-    }
-
-    .text-danger {
-        color: #ef4444;
-    }
-
-    .text-warning {
-        color: #f59e0b;
-    }
-
-    .text-success {
-        color: #10b981;
+        font-size: 0.8125rem;
+        color: $text-secondary;
     }
 }
 </style>

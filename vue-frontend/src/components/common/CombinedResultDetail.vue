@@ -75,54 +75,74 @@ const getPhishingRiskClass = (score: number) => {
 </script>
 
 <style lang="scss" scoped>
+@use '@/styles/variables.scss' as *;
+@use '@/styles/mixins.scss' as *;
+
 .combined-result {
     .result-summary {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
+        @include info-grid(180px);
+        margin-bottom: $space-2;
+    }
 
-        .summary-item {
-            text-align: center;
-            padding: 1rem;
-            background: #f9fafb;
-            border-radius: 0.5rem;
+    .summary-item {
+        @include stat-tile;
+        text-align: center;
+    }
 
-            .summary-label {
-                font-size: 0.75rem;
-                color: #6b7280;
-                margin-bottom: 0.5rem;
-            }
+    .summary-label {
+        margin-bottom: $space-2;
+        font-size: 0.8125rem;
+        color: $text-secondary;
+    }
 
-            .summary-value {
-                font-size: 1.5rem;
-                font-weight: 700;
-            }
-        }
+    .summary-value {
+        font-size: 1.75rem;
+        font-weight: 700;
     }
 
     .detail-list {
-        .detail-item {
-            padding: 0.5rem 0;
-            font-size: 0.875rem;
+        display: flex;
+        flex-direction: column;
+        gap: $space-3;
+    }
 
-            .detail-label {
-                font-weight: 500;
-                color: #6b7280;
-                margin-right: 0.5rem;
-            }
-        }
+    .detail-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: $space-4;
+        padding: $space-3 $space-4;
+        border-radius: $radius-md;
+        background: $surface-muted;
+        border: 1px solid rgba(24, 144, 255, 0.08);
+        font-size: 0.875rem;
+        color: $text-primary;
+    }
+
+    .detail-label {
+        color: $text-secondary;
+        font-weight: 500;
     }
 
     .text-danger {
-        color: #ef4444;
+        color: $danger;
     }
 
     .text-warning {
-        color: #f59e0b;
+        color: $warning;
     }
 
     .text-success {
-        color: #10b981;
+        color: $success;
+    }
+}
+
+@media (max-width: $breakpoint-sm) {
+    .combined-result {
+        .detail-item {
+            flex-direction: column;
+            align-items: flex-start;
+        }
     }
 }
 </style>

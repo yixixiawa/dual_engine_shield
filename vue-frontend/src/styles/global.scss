@@ -1,404 +1,152 @@
 @use './variables.scss' as *;
+@use './mixins.scss' as *;
 
 * {
   box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+html,
+body {
   margin: 0;
   padding: 0;
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: $gradient-bg;
-  background-attachment: fixed;
-  background-size: 400% 400%;
-  animation: gradientShift 20s ease infinite;
-  color: #1e293b;
-  min-height: 100vh;
+  font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: linear-gradient(180deg, #f8fbff 0%, $background 100%);
+  color: $text-primary;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
 .mono {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
 }
 
-// 自定义滚动条
+.page-shell {
+  @include app-page();
+}
+
+.page-shell--wide {
+  @include app-page($page-wide-width);
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: $space-4;
+  flex-wrap: wrap;
+}
+
+.page-header__title {
+  @include clamp-title(1.5rem);
+  margin: 0;
+}
+
+.page-header__desc {
+  margin: $space-2 0 0;
+  color: $text-secondary;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  flex-wrap: wrap;
+}
+
+.section-card {
+  @include app-card;
+}
+
+.section-title {
+  @include section-title;
+}
+
+.status-chip {
+  @include badge(rgba(24, 144, 255, 0.12), $primary-active);
+}
+
+.surface-muted {
+  background: $surface-muted;
+}
+
+.text-danger {
+  color: $danger;
+}
+
+.text-warning {
+  color: $warning;
+}
+
+.text-success {
+  color: $success;
+}
+
+.code-block {
+  @include code-block;
+}
+
+.el-card {
+  border-radius: $radius-lg;
+}
+
+.el-table {
+  --el-table-border-color: #e8eef5;
+  --el-table-header-bg-color: #f8fbff;
+  --el-table-row-hover-bg-color: rgba(24, 144, 255, 0.04);
+}
+
+.el-tag {
+  border-radius: 999px;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.05);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-  
-  &:hover {
-    background: rgba(0, 0, 0, 0.3);
+  background: rgba(91, 107, 122, 0.32);
+  border-radius: 999px;
+}
+
+@include respond-down($breakpoint-md) {
+  .page-header {
+    align-items: stretch;
   }
 }
 
-// 动画类
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
-}
-
-// 玻璃效果类
-.glass {
-  @include glass;
-}
-
-.glass-dark {
-  @include glass-dark;
-}
-
-// 渐变文字
-.gradient-text {
-  background: $gradient-primary;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-// 悬停提升效果
-.hover-lift {
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
+@include respond-down($breakpoint-sm) {
+  .page-shell,
+  .page-shell--wide {
+    gap: $space-4;
   }
-}
 
-// 进度条
-.progress-bar {
-  background: $gradient-primary;
-  transition: width 0.5s ease;
-}
-
-// 漏洞卡片
-.vuln-card {
-  border-left: 3px solid transparent;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    transform: translateX(5px);
-    background: rgba(139, 92, 246, 0.03);
+  .page-header__title {
+    font-size: 1.25rem;
   }
-  
-  &.critical { 
-    border-left-color: #dc2626; 
-    background: rgba(254, 226, 226, 0.5); 
-  }
-  &.high { 
-    border-left-color: #ef4444; 
-    background: rgba(254, 242, 242, 0.5); 
-  }
-  &.medium { 
-    border-left-color: #f59e0b; 
-    background: rgba(255, 251, 235, 0.5); 
-  }
-  &.low { 
-    border-left-color: #3b82f6; 
-    background: rgba(239, 246, 255, 0.5); 
-  }
-}
-
-// ========== 微交互增强 ==========
-
-// 按钮悬停反馈
-button, [type="button"], .el-button {
-  transition: all 0.2s ease !important;
-  
-  &:not(:disabled):hover {
-    transform: translateY(-2px);
-    filter: brightness(1.05);
-  }
-  
-  &:not(:disabled):active {
-    transform: translateY(0);
-  }
-}
-
-// 所有可点击元素的平滑过渡
-a, button, [role="button"], .clickable, 
-.el-button, .el-tag, .el-dropdown, .el-menu-item,
-.el-table__row, .el-card, .tab-item, 
-[class*="card"], [class*="panel"] {
-  transition: all 0.2s ease;
-}
-
-// 卡片悬停效果
-.el-card, [class*="card"], 
-.panel, [class*="panel"],
-.item-card, .result-card, .task-card {
-  transition: all 0.2s ease;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.15) !important;
-    border-color: rgba(79, 70, 229, 0.3) !important;
-  }
-}
-
-// 表格行悬停效果
-.el-table tbody tr {
-  transition: all 0.2s ease;
-  
-  &:hover {
-    background-color: rgba(79, 70, 229, 0.05) !important;
-    transform: translateY(-1px);
-  }
-}
-
-// 标签和徽章
-.el-tag {
-  transition: all 0.2s ease;
-  
-  &:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px -2px rgba(79, 70, 229, 0.2);
-  }
-}
-
-// 输入框焦点效果
-input, textarea, .el-input, .el-textarea {
-  transition: all 0.2s ease;
-  
-  &:focus, .el-input__wrapper:focus-within {
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1),
-                0 0 12px rgba(79, 70, 229, 0.3) !important;
-  }
-}
-
-// 下拉框
-.el-select .el-input__wrapper {
-  transition: all 0.2s ease;
-}
-
-// 标签页切换效果
-.el-tabs__nav-wrap, .el-tabs__nav,
-.tab-item, [class*="tab"] {
-  transition: all 0.2s ease;
-  
-  .is-active {
-    color: $primary;
-    border-bottom-color: $primary;
-  }
-}
-
-// 折叠面板展开动画
-.el-collapse-item,
-[class*="collapse"], [class*="accordion"] {
-  transition: all 0.2s ease;
-  
-  &.is-active {
-    .el-collapse-item__header {
-      color: $primary;
-      background: rgba(79, 70, 229, 0.05);
-    }
-  }
-}
-
-// ========== 骨架屏加载 ==========
-
-// 骨架屏样式
-@keyframes skeleton-loading {
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
-}
-
-.skeleton {
-  background: linear-gradient(90deg, 
-    #e5e7eb 25%, 
-    #f3f4f6 50%, 
-    #e5e7eb 75%);
-  background-size: 1000px 100%;
-  animation: skeleton-loading 2s infinite;
-  border-radius: 4px;
-  
-  // 不同尺寸的骨架块
-  &.skeleton-text {
-    height: 16px;
-    margin-bottom: 8px;
-    
-    &.small { height: 12px; }
-    &.large { height: 20px; }
-  }
-  
-  &.skeleton-title {
-    height: 24px;
-    width: 60%;
-    margin-bottom: 16px;
-  }
-  
-  &.skeleton-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-  }
-  
-  &.skeleton-card {
-    height: 120px;
-    border-radius: 8px;
-    margin-bottom: 12px;
-  }
-  
-  &.skeleton-paragraph {
-    height: 16px;
-    margin-bottom: 8px;
-    
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
-  
-  &.skeleton-row {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 12px;
-    
-    > * {
-      flex: 1;
-      height: 40px;
-    }
-  }
-  
-  &.skeleton-table {
-    width: 100%;
-    
-    .skeleton-cell {
-      height: 40px;
-      margin-bottom: 8px;
-      border-radius: 4px;
-    }
-  }
-}
-
-// 骨架屏网格布局
-.skeleton-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  
-  .skeleton-card {
-    height: 200px;
-  }
-}
-
-// 加载状态占位符
-.loading-placeholder {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  
-  &.loading-card {
-    background: white;
-    border-radius: 8px;
-    padding: 16px;
-  }
-  
-  &.loading-list {
-    .skeleton-row {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-  }
-}
-
-// 骨架屏容器
-.skeleton-container {
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-// 确保骨架屏不会被遮挡
-:deep(.el-skeleton) {
-  .el-skeleton__item {
-    background: linear-gradient(90deg, 
-      #e5e7eb 25%, 
-      #f3f4f6 50%, 
-      #e5e7eb 75%);
-    background-size: 1000px 100%;
-    animation: skeleton-loading 2s infinite;
-  }
-}
-
-// ========== 展开/折叠动画 ==========
-
-// 自定义展开动画
-.collapse-enter-active,
-.collapse-leave-active {
-  transition: all 0.3s ease;
-}
-
-.collapse-enter-from,
-.collapse-leave-to {
-  opacity: 0;
-  max-height: 0;
-  overflow: hidden;
-}
-
-.collapse-enter-to,
-.collapse-leave-from {
-  opacity: 1;
-  max-height: 1000px;
-}
-
-// 滑入动画
-.slide-in-left-enter-active,
-.slide-in-right-enter-active,
-.slide-in-down-enter-active,
-.slide-in-up-enter-active {
-  transition: all 0.3s ease;
-}
-
-.slide-in-left-leave-active,
-.slide-in-right-leave-active,
-.slide-in-down-leave-active,
-.slide-in-up-leave-active {
-  transition: all 0.2s ease;
-}
-
-.slide-in-left-enter-from,
-.slide-in-left-leave-to {
-  transform: translateX(-20px);
-  opacity: 0;
-}
-
-.slide-in-right-enter-from,
-.slide-in-right-leave-to {
-  transform: translateX(20px);
-  opacity: 0;
-}
-
-.slide-in-down-enter-from,
-.slide-in-down-leave-to {
-  transform: translateY(-20px);
-  opacity: 0;
-}
-
-.slide-in-up-enter-from,
-.slide-in-up-leave-to {
-  transform: translateY(20px);
-  opacity: 0;
-}
-
-// 淡入淡出动画
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
 }

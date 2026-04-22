@@ -118,43 +118,43 @@ const handleMenuSelect = (index: string) => {
 
 <style lang="scss" scoped>
 @use '@/styles/variables.scss' as *;
+@use '@/styles/mixins.scss' as *;
 
 .sidebar {
-    position: fixed;
-    left: 0;
+    position: sticky;
     top: 0;
-    width: 280px;
-    height: 100vh;
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(16px);
-    border-right: 1px solid rgba(255, 255, 255, 0.6);
+    align-self: start;
+    width: 100%;
+    min-height: 100vh;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(18px);
+    border-right: 1px solid rgba(24, 144, 255, 0.08);
     display: flex;
     flex-direction: column;
-    z-index: 50;
 }
 
 .logo-section {
-    padding: 1.5rem;
+    padding: $space-8 $space-6 $space-6;
     text-align: center;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
 
     .logo {
         font-size: 1.5rem;
         font-weight: 800;
         letter-spacing: -0.02em;
-        margin-bottom: 0.5rem;
+        margin-bottom: $space-2;
     }
 
     .subtitle {
         font-size: 0.75rem;
-        color: #6b7280;
-        font-family: monospace;
+        color: $text-secondary;
+        font-family: 'JetBrains Mono', monospace;
     }
 
     .tagline {
-        font-size: 0.625rem;
-        color: #9ca3af;
-        margin-top: 0.25rem;
+        font-size: 0.75rem;
+        color: $text-muted;
+        margin-top: $space-1;
     }
 }
 
@@ -162,74 +162,90 @@ const handleMenuSelect = (index: string) => {
     flex: 1;
     border-right: none;
     background: transparent;
-    padding: 0.75rem;
+    padding: $space-4;
 
     :deep(.el-menu-item) {
-        border-radius: 0.75rem;
-        margin-bottom: 0.25rem;
+        border-radius: $radius-md;
+        margin-bottom: $space-2;
         height: auto;
-        padding: 0.75rem 1rem;
+        padding: 0.875rem 1rem;
+        color: $text-secondary;
 
         &:hover {
-            background: rgba(59, 130, 246, 0.08);
+            background: rgba(24, 144, 255, 0.08);
+            color: $primary-active;
         }
 
         &.is-active {
-            background: linear-gradient(90deg, rgba(59, 130, 246, 0.12), transparent);
-            border-left: 3px solid #3b82f6;
-
-            &::before {
-                content: '';
-                position: absolute;
-                left: 0;
-                top: 0;
-                height: 100%;
-                width: 3px;
-                background: linear-gradient(to bottom, #3b82f6, #8b5cf6);
-            }
+            background: rgba(24, 144, 255, 0.12);
+            color: $primary-active;
+            border-left: 3px solid $primary;
+            font-weight: 600;
         }
     }
 }
 
 .system-status {
-    margin: 1rem;
-    padding: 1rem;
-    @include glass;
-    border-radius: 0.75rem;
+    margin: $space-4;
+    padding: $space-4;
+    @include app-card;
 
     .status-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         font-size: 0.75rem;
-        color: #6b7280;
-        margin-bottom: 0.75rem;
+        color: $text-secondary;
+        margin-bottom: $space-3;
     }
 
     .status-content {
-        font-size: 0.75rem;
+        font-size: 0.8125rem;
 
         .model-group {
-            margin-bottom: 0.75rem;
+            margin-bottom: $space-3;
 
             .group-title {
-                font-weight: 500;
-                color: #374151;
-                margin-bottom: 0.5rem;
+                font-weight: 600;
+                color: $text-primary;
+                margin-bottom: $space-2;
             }
 
             .model-list {
                 display: flex;
-                gap: 0.5rem;
+                flex-wrap: wrap;
+                gap: $space-2;
             }
         }
 
         .task-info {
             display: flex;
             justify-content: space-between;
-            padding-top: 0.5rem;
-            border-top: 1px solid rgba(0, 0, 0, 0.05);
+            padding-top: $space-3;
+            border-top: 1px solid rgba(15, 23, 42, 0.06);
+            color: $text-secondary;
         }
+    }
+}
+
+@media (max-width: $breakpoint-md) {
+    .sidebar {
+        position: static;
+        min-height: auto;
+        border-right: none;
+        border-bottom: 1px solid rgba(24, 144, 255, 0.08);
+    }
+
+    .logo-section {
+        padding: $space-5 $space-4;
+    }
+
+    .sidebar-menu {
+        padding: $space-3;
+    }
+
+    .system-status {
+        margin-top: 0;
     }
 }
 </style>

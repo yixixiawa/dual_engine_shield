@@ -12,6 +12,7 @@ from .code_detect import (
     BatchCodeVulnerabilityDetectView,
     FileScanView,
     DirectoryScanView,
+    ComprehensiveDetectView,
 )
 
 # 任务管理
@@ -31,7 +32,6 @@ from .stats import (
 from .geo_phishing import (
     GeoPhishingLocationViewSet,
     GeoPhishingStatisticsViewSet,
-    GeoLocationSyncView,
 )
 
 # ViewSet 集合
@@ -65,6 +65,7 @@ __all__ = [
     'BatchCodeVulnerabilityDetectView',
     'FileScanView',
     'DirectoryScanView',
+    'ComprehensiveDetectView',
     # Views - 钓鱼检测
     'PhishingDetectView',
     # Views - 任务管理
@@ -77,7 +78,6 @@ __all__ = [
     # Views - 地理位置钓鱼追踪
     'GeoPhishingLocationViewSet',
     'GeoPhishingStatisticsViewSet',
-    'GeoLocationSyncView',
     # ViewSets
     'DetectionLogViewSet',
     'WhitelistEntryViewSet',

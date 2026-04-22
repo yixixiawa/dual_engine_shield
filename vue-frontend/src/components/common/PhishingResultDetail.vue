@@ -131,10 +131,10 @@
                     <div class="feature-header">
                         <span class="feature-name">{{ feature.name || feature.feature || '未知特征' }}</span>
                         <span class="feature-score" :class="feature.score > 0.5 ? 'text-danger' : 'text-success'">
-                            {{ (feature.score * 100).toFixed(0) }}%
+                            {{ (feature.score * 100).toFixed(1) }}%
                         </span>
                     </div>
-                    <el-progress :percentage="Math.abs(feature.score) * 100" :stroke-width="6"
+                    <el-progress :percentage="parseFloat((Math.abs(feature.score) * 100).toFixed(1))" :stroke-width="6"
                         :color="feature.score > 0.5 ? '#ef4444' : '#10b981'" :show-text="false" />
                     <div v-if="feature.description" class="feature-desc">
                         {{ feature.description }}

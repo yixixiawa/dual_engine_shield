@@ -1,98 +1,171 @@
-import useEarth3D from "./earth3d";
-import useEarth2D from "./earth2d";
-import { 
-  defaultChartStyle, 
-  addScatterData, 
+import earthFlyLine from 'earth-flyline'
+import {
   addFlyLineData,
-  updateEarthColor as updateEarth3dColor,
+  addScatterData,
+  buildInitConfig,
+  defaultChartStyle,
+  defaultEarthConfig,
+  disposeChart,
+  registerMapResource,
+  removeChartData,
+  updateEarthColor as applyEarthColor,
   updateMapAreaColor,
-  updateMapLineColor
-} from "./earth-common";
+  updateMapLineColor,
+  updateRadius,
+  validateContainer
+} from './earth-common'
+import type { ChartStyle, DragConfig, EarthConfig, EarthMode, FlyLineData, ScatterData } from './earth-common'
+import earth2dConfig from './earth2d'
+import earth3dConfig from './earth3d'
+
+const mergeDragConfig = (mode: EarthMode, customConfig: Partial<EarthConfig>): DragConfig => {
+  const defaults = defaultEarthConfig[mode].dragConfig
+  const merged = {
+    ...(defaults || {}),
+    ...(customConfig.dragConfig || {})
+  }
+
+  return {
+    rotationSpeed: merged.rotationSpeed ?? (mode === '3d' ? 1 : 0),
+    inertiaFactor: merged.inertiaFactor ?? (mode === '3d' ? 10 : 0),
+    disableX: merged.disableX ?? (mode === '2d'),
+    disableY: merged.disableY ?? (mode === '2d')
+  }
+}
+
+const mergeConfig = (mode: EarthMode, customConfig: Partial<EarthConfig>): EarthConfig => {
+  const defaults = defaultEarthConfig[mode]
+
+  return {
+    mode,
+    autoRotate: customConfig.autoRotate ?? defaults.autoRotate ?? (mode === '3d'),
+    rotateSpeed: customConfig.rotateSpeed ?? defaults.rotateSpeed,
+    radius: customConfig.radius ?? defaults.radius,
+    stopRotateByHover: customConfig.stopRotateByHover ?? defaults.stopRotateByHover,
+    dragConfig: mergeDragConfig(mode, customConfig)
+  }
+}
+
+const initEarthChart = (containerId: string, config: EarthConfig, chartStyle: ChartStyle): any => {
+  registerMapResource()
+  const dom = validateContainer(containerId)
+  if (!dom) return null
+
+  try {
+    const initConfig = buildInitConfig({ dom, mode: config.mode, config, chartStyle })
+    return earthFlyLine.init(initConfig as any)
+  } catch (error) {
+    console.error(`${config.mode.toUpperCase()} 地球初始化失败:`, error)
+    return null
+  }
+}
 
 export const useEarthModel = () => {
-  const earth3d = useEarth3D();
-  const earth2d = useEarth2D();
-  
-  const chartstyle = { ...defaultChartStyle };
+  const chartStyle: ChartStyle = { ...defaultChartStyle }
+  const finalConfigs: Record<EarthMode, EarthConfig> = {
+    '3d': mergeConfig('3d', earth3dConfig),
+    '2d': mergeConfig('2d', earth2dConfig)
+  }
 
-  const initChart = (containerId: string) => {
-    return earth3d.initChart(containerId, chartstyle);
-  };
+  let currentChart: any = null
+  let currentMode: EarthMode = '3d'
 
-  const init2dChart = (containerId: string) => {
-    return earth2d.initChart(containerId, chartstyle);
-  };
+  const init = (containerId: string, mode: EarthMode) => {
+    disposeChart(currentChart)
+    currentChart = initEarthChart(containerId, finalConfigs[mode], chartStyle)
+    currentMode = mode
+    return currentChart
+  }
 
-  // 更新地球颜色
+  const initChart = (containerId: string) => init(containerId, '3d')
+
+  const init2dChart = (containerId: string) => init(containerId, '2d')
+
+  const switchMode = (containerId: string, mode: EarthMode) => init(containerId, mode)
+
+  const addScatter = (data: ScatterData[]) => {
+    removeChartData(currentChart, 'point', 'removeAll')
+    if (!data.length) return
+    addScatterData(currentChart, data)
+  }
+
+  const addFlyLines = (data: FlyLineData[]) => {
+    addFlyLineData(currentChart, data)
+  }
+
+  const addData = (type: 'flyLine' | 'point' | 'road' | 'wall' | 'mapStreamLine' | 'bar' | 'textMark', data: any) => {
+    if (!currentChart) return
+
+    if (typeof currentChart.addData === 'function') {
+      currentChart.addData(type, data)
+      return
+    }
+
+    if (typeof currentChart.setData === 'function') {
+      currentChart.setData(type, data)
+    }
+  }
+
+  const removeData = (type: 'flyLine' | 'point' | 'road' | 'wall' | 'mapStreamLine' | 'bar' | 'textMark', ids: string[] | 'removeAll') => {
+    removeChartData(currentChart, type, ids)
+  }
+
+  const clearScatter = () => {
+    removeChartData(currentChart, 'point', 'removeAll')
+  }
+
+  const getChart = () => currentChart
+
+  const getChart3d = () => (currentMode === '3d' ? currentChart : null)
+
+  const getChart2d = () => (currentMode === '2d' ? currentChart : null)
+
+  const getMode = () => currentMode
+
   const updateEarthColor = (color: string) => {
-    chartstyle.earthColor.value = color;
-    updateEarth3dColor(earth3d.getChart(), color);
-  };
+    chartStyle.earthColor = color
+    applyEarthColor(currentChart, color)
+  }
 
-  // 更新区域颜色
   const updateAreaColor = (color: string) => {
-    chartstyle.areaColor.value = color;
-    updateMapAreaColor(earth3d.getChart(), color);
-    updateMapAreaColor(earth2d.getChart(), color);
-  };
+    chartStyle.areaColor = color
+    updateMapAreaColor(currentChart, color)
+  }
 
-  // 更新飞线颜色
   const updateLineColor = (color: string) => {
-    chartstyle.lineColor.value = color;
-    updateMapLineColor(earth3d.getChart(), color);
-    updateMapLineColor(earth2d.getChart(), color);
-  };
+    chartStyle.lineColor = color
+    updateMapLineColor(currentChart, color)
+  }
 
-  // 添加散点数据
-  const addScatter = (data: Array<{ lon: number; lat: number; name: string; value: number }>) => {
-    const chart3dInstance = earth3d.getChart();
-    const chart2dInstance = earth2d.getChart();
-    
-    if (chart3dInstance) {
-      addScatterData(chart3dInstance, data);
-    }
-    if (chart2dInstance) {
-      addScatterData(chart2dInstance, data);
-    }
-  };
+  const setEarthRadius = (radius: number) => {
+    updateRadius(currentChart, radius)
+  }
 
-  // 添加飞线数据
-  const addFlyLines = (data: Array<{ from: { lon: number; lat: number }; to: { lon: number; lat: number }; name: string }>) => {
-    const chart3dInstance = earth3d.getChart();
-    if (chart3dInstance) {
-      addFlyLineData(chart3dInstance, data);
-    }
-  };
-
-  // 获取图表实例
-  const getChart = () => earth3d.getChart() || earth2d.getChart();
-  
-  // 获取3D图表
-  const getChart3d = () => earth3d.getChart();
-  
-  // 获取2D图表
-  const getChart2d = () => earth2d.getChart();
-  
-  // 销毁图表
-  const disposeChart = () => {
-    earth3d.dispose();
-    earth2d.dispose();
-  };
+  const dispose = () => {
+    disposeChart(currentChart)
+    currentChart = null
+  }
 
   return {
     initChart,
     init2dChart,
+    switchMode,
     addScatter,
     addFlyLines,
+    addData,
+    removeData,
+    clearScatter,
     getChart,
     getChart3d,
     getChart2d,
-    disposeChart,
-    chartstyle,
+    getMode,
+    dispose,
+    chartStyle,
     updateEarthColor,
     updateAreaColor,
-    updateLineColor
-  };
-};
+    updateLineColor,
+    setEarthRadius
+  }
+}
 
-export default useEarthModel;
+export default useEarthModel

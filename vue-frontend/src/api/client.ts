@@ -57,9 +57,10 @@ export async function apiCall<T = unknown>(
     try {
         const isGet = method === "GET"
         const query = isGet && payload && typeof payload === "object" ? (payload as JsonObject) : undefined
+        const headers: HeadersInit | undefined = isGet ? undefined : { "Content-Type": "application/json" }
         const response = await fetch(buildUrl(path, query), {
             method,
-            headers: { "Content-Type": "application/json" },
+            headers,
             credentials: "include",
             signal: controller.signal,
             body: isGet ? undefined : JSON.stringify(payload ?? {})

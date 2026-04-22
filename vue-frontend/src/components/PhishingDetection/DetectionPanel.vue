@@ -1,7 +1,7 @@
 <template>
-    <el-card class="detection-panel" shadow="hover">
+    <el-card class="detection-panel" shadow="never">
         <div class="detection-header">
-            <h2>
+            <h2 class="panel-title">
                 <el-icon>
                     <Search />
                 </el-icon>
@@ -9,7 +9,7 @@
             </h2>
 
             <div class="threshold-control">
-                <span class="label">检测强度:</span>
+                <span class="label">检测强度</span>
                 <span class="strict">严格</span>
                 <el-slider v-model="threshold" :min="30" :max="90" :step="5" :show-tooltip="false"
                     class="threshold-slider" />
@@ -19,21 +19,50 @@
         </div>
 
         <div class="input-area">
-            <el-input v-model="url" placeholder="输入可疑网址，例如: https://portal.gdust.edu.cn 或 https://192.168.1.1.bank.com"
-                size="large" clearable @keyup.enter="detect">
-                <template #append>
-                    <el-button type="primary" :loading="detectionStore.isLoading" @click="detect">
-                        <el-icon>
-                            <Search />
-                        </el-icon>
-                        开始检测
-                    </el-button>
-                </template>
-            </el-input>
+            <el-tabs v-model="activeTab">
+                <el-tab-pane label="单URL检测">
+                    <el-input v-model="url" placeholder="输入可疑网址，例如: https://portal.gdust.edu.cn 或 https://192.168.1.1.bank.com"
+                        size="large" clearable @keyup.enter="detect">
+                        <template #append>
+                            <el-button type="primary" :loading="detectionStore.isLoading" @click="detect">
+                                <el-icon>
+                                    <Search />
+                                </el-icon>
+                                开始检测
+                            </el-button>
+                        </template>
+                    </el-input>
+                </el-tab-pane>
+                <el-tab-pane label="多URL检测">
+                    <el-input
+                        v-model="urlsText"
+                        type="textarea"
+                        :rows="4"
+                        placeholder="输入多个网址，每行一个，例如：
+https://www.llojin-mettaamak-uk.godaddysites.com/
+https://ze2413.craftum.io/"
+                        size="large"
+                    />
+                    <div class="batch-actions">
+                        <el-button type="primary" :loading="detectionStore.isLoading" @click="batchDetect">
+                            <el-icon>
+                                <Search />
+                            </el-icon>
+                            批量检测
+                        </el-button>
+                        <el-button @click="clearUrls">
+                            <el-icon>
+                                <Delete />
+                            </el-icon>
+                            清空
+                        </el-button>
+                    </div>
+                </el-tab-pane>
+            </el-tabs>
         </div>
 
         <div class="quick-tests">
-            <span class="label">快速测试:</span>
+            <span class="label">快速测试</span>
             <el-button size="small" type="success" plain @click="quickTest('https://portal.gdust.edu.cn')">
                 教育网(应通过)
             </el-button>
@@ -53,7 +82,9 @@ import { useDetectionStore } from '@/stores/detection'
 
 const detectionStore = useDetectionStore()
 const url = ref('')
+const urlsText = ref('')
 const threshold = ref(detectionStore.threshold)
+const activeTab = ref('0')
 
 watch(threshold, (val) => {
     detectionStore.setThreshold(val)
@@ -65,154 +96,126 @@ const detect = () => {
     }
 }
 
+const batchDetect = () => {
+    const urls = urlsText.value
+        .split('\n')
+        .map(url => url.trim())
+        .filter(url => url)
+    
+    if (urls.length > 0) {
+        emit('batchDetect', urls)
+    }
+}
+
+const clearUrls = () => {
+    urlsText.value = ''
+}
+
 const quickTest = (testUrl: string) => {
     url.value = testUrl
+    activeTab.value = '0'
     detect()
 }
 
 const emit = defineEmits<{
     (e: 'detect', url: string): void
+    (e: 'batchDetect', urls: string[]): void
 }>()
 </script>
 
 <style lang="scss" scoped>
 @use '@/styles/variables.scss' as *;
+@use '@/styles/mixins.scss' as *;
 
 .detection-panel {
-    margin-bottom: 1.5rem;
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(16px);
-    transition: all 0.2s ease;
-    border: 1px solid rgba(79, 70, 229, 0.2);
-
-    &:hover {
-        box-shadow: 0 12px 24px -8px rgba(79, 70, 229, 0.15);
-        border-color: rgba(79, 70, 229, 0.3);
-    }
+    @include app-card;
 
     .detection-header {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
         flex-wrap: wrap;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
+        gap: $space-4;
+        margin-bottom: $space-6;
+    }
 
-        h2 {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 1.25rem;
-            font-weight: 600;
-            transition: all 0.2s ease;
+    .panel-title {
+        display: flex;
+        align-items: center;
+        gap: $space-2;
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: $text-primary;
+    }
 
-            &:hover {
-                color: $primary;
-            }
+    .threshold-control {
+        display: grid;
+        grid-template-columns: auto auto minmax(120px, 180px) auto auto;
+        align-items: center;
+        gap: $space-3;
+
+        .label,
+        .threshold-value {
+            white-space: nowrap;
         }
 
-        .threshold-control {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            transition: all 0.2s ease;
+        .label,
+        .strict,
+        .loose {
+            font-size: 0.8125rem;
+            color: $text-secondary;
+        }
 
-            .label,
-            .strict,
-            .loose {
-                font-size: 0.75rem;
-                color: #6b7280;
-            }
+        .strict {
+            color: $danger;
+            font-weight: 600;
+        }
 
-            .strict {
-                color: #ef4444;
-                font-weight: 500;
-            }
-
-            .loose {
-                color: #10b981;
-                font-weight: 500;
-            }
-
-            .threshold-slider {
-                width: 160px;
-                transition: all 0.2s ease;
-
-                :deep(.el-slider__bar) {
-                    transition: all 0.2s ease;
-                }
-
-                :deep(.el-slider__button-wrapper) {
-                    transition: all 0.2s ease;
-                }
-            }
+        .loose {
+            color: $success;
+            font-weight: 600;
         }
     }
 
     .input-area {
-        margin-bottom: 1rem;
-        width: 100%;
-
-        :deep(.el-input) {
-            width: 100%;
-        }
-
-        :deep(.el-input__wrapper) {
-            padding: 12px 16px;
-            transition: all 0.2s ease;
-
-            &:hover,
-            &:focus-within {
-                box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1),
-                            0 0 12px rgba(79, 70, 229, 0.2);
-            }
-        }
+        margin-bottom: $space-4;
 
         :deep(.el-input-group__append) {
             padding: 0;
+        }
 
-            button {
-                transition: all 0.2s ease;
-                background-color: #4F46E5;
-                border-color: #4F46E5;
+        :deep(.el-input-group__append .el-button) {
+            min-width: 132px;
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
 
-                &:hover:not(:disabled) {
-                    transform: translateY(-2px);
-                    filter: brightness(1.05);
-                    background-color: #6366F1;
-                    border-color: #6366F1;
-                }
-
-                &:active:not(:disabled) {
-                    transform: translateY(0);
-                }
-            }
+        .batch-actions {
+            margin-top: $space-3;
+            display: flex;
+            gap: $space-2;
         }
     }
 
     .quick-tests {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: $space-2;
         flex-wrap: wrap;
 
         .label {
-            font-size: 0.75rem;
-            color: #6b7280;
+            color: $text-secondary;
+            font-size: 0.8125rem;
         }
+    }
+}
 
-        :deep(.el-button) {
-            transition: all 0.2s ease;
-
-            &:hover {
-                transform: translateY(-2px);
-                filter: brightness(1.05);
-                box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.15);
-            }
-
-            &:active {
-                transform: translateY(0);
-            }
+@media (max-width: $breakpoint-md) {
+    .detection-panel {
+        .threshold-control {
+            grid-template-columns: 1fr;
+            justify-items: start;
         }
     }
 }

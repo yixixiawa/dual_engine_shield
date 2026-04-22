@@ -1,96 +1,155 @@
-// 科技感蓝紫主题颜色变量
-$primary: #4f46e5; // 主紫色
-$primary-light: #818cf8; // 浅紫色
-$primary-dark: #3730a3; // 深紫色
-$secondary: #0ea5e9; // 主蓝色
-$secondary-light: #38bdf8; // 浅蓝色
-$secondary-dark: #0284c7; // 深蓝色
-$accent: #7c3aed; // 强调色
-$success: #10b981;
-$warning: #f59e0b;
-$danger: #ef4444;
-$critical: #dc2626;
+$primary: #1890ff;
+$primary-hover: #40a9ff;
+$primary-active: #096dd9;
+$secondary: #f0f2f5;
+$background: #f5f7fa;
+$surface: #ffffff;
+$surface-muted: #fafbfc;
+$border: #d9e1ec;
+$border-strong: #c7d2e0;
+$text-primary: #1f2d3d;
+$text-secondary: #5b6b7a;
+$text-muted: #8a97a6;
+$success: #52c41a;
+$warning: #faad14;
+$danger: #ff4d4f;
+$critical: #cf1322;
 
-// 渐变色
-$gradient-primary: linear-gradient(135deg, #4f46e5, #0ea5e9, #7c3aed);
-$gradient-secondary: linear-gradient(135deg, #3730a3, #0284c7, #6d28d9);
-$gradient-danger: linear-gradient(135deg, #ef4444, #dc2626);
-$gradient-success: linear-gradient(135deg, #10b981, #059669);
-$gradient-bg: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 25%, #dbeafe 50%, #ddd6fe 75%, #f0f9ff 100%);
-$gradient-bg-dark: linear-gradient(135deg, #0f172a 0%, #1e293b 25%, #334155 50%, #475569 75%, #64748b 100%);
+$shadow-sm: 0 6px 18px rgba(31, 45, 61, 0.06);
+$shadow-md: 0 12px 32px rgba(31, 45, 61, 0.08);
+$shadow-lg: 0 20px 48px rgba(31, 45, 61, 0.12);
 
-// 玻璃效果
-@mixin glass {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(79, 70, 229, 0.2);
-  box-shadow: 0 8px 32px rgba(79, 70, 229, 0.1), 0 2px 8px rgba(79, 70, 229, 0.05);
+$radius-sm: 8px;
+$radius-md: 12px;
+$radius-lg: 16px;
+$radius-xl: 20px;
+
+$space-1: 0.25rem;
+$space-2: 0.5rem;
+$space-3: 0.75rem;
+$space-4: 1rem;
+$space-5: 1.25rem;
+$space-6: 1.5rem;
+$space-8: 2rem;
+$space-10: 2.5rem;
+
+$sidebar-width: 280px;
+$page-max-width: 1280px;
+$page-wide-width: 1400px;
+$page-padding-x: clamp(1rem, 2vw, 2rem);
+$page-padding-y: clamp(1rem, 2vw, 2rem);
+
+$breakpoint-sm: 640px;
+$breakpoint-md: 960px;
+$breakpoint-lg: 1280px;
+
+@mixin card-surface {
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
 }
 
-@mixin glass-dark {
-  background: rgba(15, 23, 42, 0.9);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(79, 70, 229, 0.3);
-  box-shadow: 0 8px 32px rgba(79, 70, 229, 0.15), 0 2px 8px rgba(79, 70, 229, 0.08);
+@mixin panel-surface {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(24, 144, 255, 0.12);
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
-// 科技感边框
-@mixin tech-border {
-  border: 1px solid rgba(79, 70, 229, 0.3);
-  box-shadow: 0 0 10px rgba(79, 70, 229, 0.2);
-  transition: all 0.3s ease;
-  
-  &:hover {
-    box-shadow: 0 0 20px rgba(79, 70, 229, 0.4);
-    border-color: rgba(79, 70, 229, 0.6);
+@mixin page-shell($max-width: $page-max-width) {
+  width: min(100%, $max-width);
+  margin: 0 auto;
+}
+
+@mixin section-stack($gap: $space-6) {
+  display: flex;
+  flex-direction: column;
+  gap: $gap;
+}
+
+@mixin section-title {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  font-size: 1rem;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+@mixin badge($bg, $color) {
+  background: $bg;
+  color: $color;
+  border-radius: 999px;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+@mixin status-panel($border-color, $background) {
+  border: 1px solid $border-color;
+  background: $background;
+  border-radius: $radius-lg;
+}
+
+@mixin code-block {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: $radius-md;
+  padding: $space-4;
+  overflow-x: auto;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+@mixin respond-down($breakpoint) {
+  @media (max-width: $breakpoint) {
+    @content;
   }
 }
 
-// 发光效果
-@mixin glow {
-  position: relative;
-  overflow: hidden;
-  
-  &::after {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: linear-gradient(45deg, transparent, rgba(79, 70, 229, 0.3), transparent);
-    transform: rotate(45deg);
-    animation: glow 3s infinite linear;
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
-}
 
-@keyframes glow {
-  0% { transform: rotate(0deg) translateX(-100%); }
-  100% { transform: rotate(360deg) translateX(100%); }
-}
-
-// 动画
-@keyframes gradientShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes pulse-red {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.3); }
-  50% { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(207, 19, 34, 0.18);
+  }
+
+  50% {
+    box-shadow: 0 0 0 10px rgba(207, 19, 34, 0);
+  }
 }
 
-// 风险等级
-.risk-safe { color: #059669; border-color: #10b981; }
-.risk-low { color: #2563eb; border-color: #3b82f6; }
-.risk-medium { color: #d97706; border-color: #f59e0b; }
-.risk-high { color: #dc2626; border-color: #ef4444; }
-.risk-critical { color: #991b1b; border-color: #dc2626; animation: pulse-red 2s infinite; }
+.risk-safe {
+  color: $success;
+}
+
+.risk-low {
+  color: $primary;
+}
+
+.risk-medium {
+  color: $warning;
+}
+
+.risk-high {
+  color: $danger;
+}
+
+.risk-critical {
+  color: $critical;
+}

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { getTaskList, type Task as ApiTask } from '@/api'
 
 // 定义任务接口
 export interface Task {
@@ -55,50 +56,38 @@ export const useTasksStore = defineStore('tasks', () => {
         tasks.value = []
     }
 
+    // 从API任务转换为前端任务
+    const convertApiTaskToTask = (apiTask: ApiTask): Task => {
+        // 尝试解析 input_data 为 JSON，获取目标 URL
+        let target = apiTask.input_data
+        try {
+            const inputData = JSON.parse(apiTask.input_data)
+            if (inputData.url) {
+                target = inputData.url
+            }
+        } catch (e) {
+            // 如果解析失败，使用原始 input_data
+        }
+
+        return {
+            id: `TASK_${apiTask.task_id}`,
+            type: 'phishing', // 默认为钓鱼检测
+            status: apiTask.status as 'pending' | 'processing' | 'completed' | 'failed',
+            target: target,
+            createdAt: apiTask.created_at,
+            result: apiTask.error_message ? { error: apiTask.error_message } : undefined
+        }
+    }
+
     // 获取任务列表
     const fetchTasks = async () => {
         isLoading.value = true
         try {
-            // 在实际应用中，这里会从API获取任务列表
-            // const method = alovaInstance.Get('/api/tasks')
-            // const result = await method.send()
-            // tasks.value = result
-
-            // 暂时使用模拟数据
-            tasks.value = [
-                {
-                    id: 'TASK_1',
-                    type: 'phishing',
-                    status: 'completed',
-                    target: 'https://example.com',
-                    createdAt: new Date().toISOString(),
-                    result: {
-                        risk_score: 85,
-                        risk_level: '高',
-                        decision: '钓鱼网站'
-                    }
-                },
-                {
-                    id: 'TASK_2',
-                    type: 'vulnerability',
-                    status: 'completed',
-                    target: 'sample.js',
-                    createdAt: new Date().toISOString(),
-                    result: {
-                        is_vulnerable: true,
-                        severity: '中等',
-                        cwe_id: 'CWE-79',
-                        cwe_name: '跨站脚本'
-                    }
-                },
-                {
-                    id: 'TASK_3',
-                    type: 'combined',
-                    status: 'processing',
-                    target: 'https://test.com',
-                    createdAt: new Date().toISOString()
-                }
-            ]
+            // 从后端 API 获取任务列表
+            const response = await getTaskList()
+            
+            // 转换 API 任务为前端任务
+            tasks.value = response.tasks.map(convertApiTaskToTask)
         } catch (error: any) {
             console.error('获取任务列表失败:', error)
         } finally {

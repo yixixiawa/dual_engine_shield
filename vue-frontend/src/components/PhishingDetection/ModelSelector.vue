@@ -1,12 +1,12 @@
 <template>
-    <el-card class="model-info-card" shadow="hover" body-class="model-card-body">
+    <el-card class="model-info-card" shadow="never" body-class="model-card-body">
         <template #header>
             <div class="card-header">
                 <el-icon>
                     <Setting />
                 </el-icon>
                 <span>GTE 深度语义检测模型</span>
-                <el-tag type="primary" effect="dark" style="margin-left: auto;">活跃</el-tag>
+                <el-tag type="primary" effect="plain" class="active-tag">活跃</el-tag>
             </div>
         </template>
 
@@ -40,21 +40,25 @@
 </script>
 
 <style lang="scss" scoped>
+@use '@/styles/variables.scss' as *;
+@use '@/styles/mixins.scss' as *;
+
 .model-info-card {
-    margin-bottom: 1.5rem;
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.8);
+    @include app-card;
 
     :deep(.el-card__header) {
-        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-        padding: 1rem;
+        padding: $space-4 $space-5;
+    }
 
-        .card-header {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-weight: 500;
+    :deep(.model-card-body) {
+        padding: $space-5;
+    }
+
+    .card-header {
+        @include app-card-header;
+
+        .active-tag {
+            margin-left: auto;
         }
     }
 }
@@ -62,24 +66,39 @@
 .model-detail {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: $space-3;
 
     .model-info-row {
         display: flex;
-        gap: 1rem;
-        padding: 0.75rem;
-        background: rgba(59, 130, 246, 0.05);
-        border-radius: 0.5rem;
+        gap: $space-4;
+        padding: $space-4;
+        background: $surface-muted;
+        border: 1px solid rgba(24, 144, 255, 0.08);
+        border-radius: $radius-md;
 
         .label {
-            font-weight: 600;
-            color: #3b82f6;
             min-width: 120px;
+            font-weight: 600;
+            color: $primary-active;
         }
 
         .value {
-            color: #6b7280;
             flex: 1;
+            color: $text-secondary;
+            line-height: 1.6;
+        }
+    }
+}
+
+@media (max-width: $breakpoint-sm) {
+    .model-detail {
+        .model-info-row {
+            flex-direction: column;
+            gap: $space-2;
+
+            .label {
+                min-width: 0;
+            }
         }
     }
 }

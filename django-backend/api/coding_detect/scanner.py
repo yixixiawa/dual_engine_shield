@@ -5,24 +5,19 @@
 遍历目录，提取代码，批量调用VR进行漏洞检测
 """
 
-import os
 import time
 import logging
 from pathlib import Path
-from typing import List, Optional, Dict
+from typing import List, Optional
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .detector import VulnLLMRDetector
 from .models import (
     VulnerabilityResult,
     DetectionReport,
-    ExtractedCode,
-    CodeLocation,
-    SeverityLevel,
 )
-from .extractors.factory import ExtractorFactory, get_extractor_factory
-from .config import DETECTION_THRESHOLDS
+from .extractors.factory import get_extractor_factory
+from .extractors.file_collector import collect_code_files
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +99,11 @@ class VulnScanner:
         )
         
         # 收集所有代码文件
-        code_files = self._collect_code_files(target_path, languages)
+        code_files = collect_code_files(
+            target_dir=target_path,
+            extractor_factory=self.extractor_factory,
+            languages=languages,
+        )
         report.total_files = len(code_files)
         
         logger.info(f"找到 {len(code_files)} 个代码文件")
@@ -145,24 +144,24 @@ class VulnScanner:
         Returns:
             漏洞检测结果列表
         """
-        file_path = Path(file_path)
-        if not file_path.exists():
-            raise FileNotFoundError(f"文件不存在: {file_path}")
+        file_path_obj = Path(file_path)
+        if not file_path_obj.exists():
+            raise FileNotFoundError(f"文件不存在: {file_path_obj}")
         
-        logger.info(f"扫描文件: {file_path}")
+        logger.info(f"扫描文件: {file_path_obj}")
         
         # 加载模型
         if not self.detector.load_model():
             raise RuntimeError("模型加载失败")
         
         # 获取提取器
-        extractor = self.extractor_factory.get_extractor_for_file(str(file_path))
+        extractor = self.extractor_factory.get_extractor_for_file(str(file_path_obj))
         if not extractor:
-            logger.warning(f"不支持的文件类型: {file_path.suffix}")
+            logger.warning(f"不支持的文件类型: {file_path_obj.suffix}")
             return []
         
         # 提取函数
-        extracted_codes = extractor.extract_from_file(str(file_path))
+        extracted_codes = extractor.extract_from_file(str(file_path_obj))
         logger.info(f"提取了 {len(extracted_codes)} 个函数")
         
         # 检测每个函数
@@ -175,7 +174,7 @@ class VulnScanner:
             )
             
             # 更新代码位置信息
-            result.code.location.file_path = str(file_path)
+            result.code.location.file_path = str(file_path_obj)
             
             results.append(result)
         
@@ -212,41 +211,6 @@ class VulnScanner:
         )
         
         return result
-    
-    def _collect_code_files(self, target_dir: Path, languages: Optional[List[str]]) -> List[Path]:
-        """
-        收集目录下的所有代码文件
-        
-        Args:
-            target_dir: 目标目录
-            languages: 要扫描的语言列表
-            
-        Returns:
-            代码文件路径列表
-        """
-        supported_extensions = set()
-        
-        if languages:
-            # 只收集指定语言的扩展名
-            for lang in languages:
-                extractor = self.extractor_factory.get_extractor(lang)
-                if extractor:
-                    supported_extensions.update(extractor.get_extensions())
-        else:
-            # 收集所有支持的扩展名
-            supported_extensions = set(self.extractor_factory.get_supported_extensions())
-        
-        code_files = []
-        for root, dirs, files in os.walk(target_dir):
-            # 跳过隐藏目录和常见忽略目录
-            dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ['node_modules', 'venv', '__pycache__', 'build', 'dist']]
-            
-            for file in files:
-                file_path = Path(root) / file
-                if file_path.suffix.lower() in supported_extensions:
-                    code_files.append(file_path)
-        
-        return code_files
     
     def _process_file(self, file_path: Path, report: DetectionReport, cwe_ids: Optional[List[str]]):
         """

@@ -10,11 +10,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.conf import settings
+from django.utils import timezone
 
 from .phishing_service import PhishingAnalysisService
 from ..ipinfo.domain_resolver import get_resolver
 from ..db import IPInfoDatabase
-from ..models import GeoPhishingLocation, DetectionLog, PhishingDetection
+from ..models import GeoPhishingLocation, DetectionLog
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,6 @@ def get_phishing_service() -> PhishingAnalysisService:
         except Exception as e:
             logger.error(f"❌ 钓鱼检测服务初始化失败: {str(e)}")
             raise
-
     return _phishing_service
 
 
@@ -186,11 +186,39 @@ class PhishingBatchDetectView(APIView):
         """执行批量 URL 钓鱼检测"""
         task_id = None
         start_time = time.time()
-        
+
         try:
             data = request.data
-            urls = data.get('urls', [])
-            html_contents = data.get('html_contents', {})
+
+            if isinstance(data, list):
+                raw_urls = data
+                html_contents = {}
+            elif isinstance(data, dict):
+                raw_urls = data.get('urls', [])
+                html_contents = data.get('html_contents', {})
+            else:
+                return Response(
+                    {"error": "请求体必须是对象或数组"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if not isinstance(raw_urls, list):
+                return Response(
+                    {"error": "urls 必须是列表"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            urls = []
+            for item in raw_urls:
+                if isinstance(item, str):
+                    url = item.strip()
+                elif isinstance(item, dict):
+                    url = str(item.get('url', '')).strip()
+                else:
+                    url = ''
+
+                if url:
+                    urls.append(url)
 
             if not urls:
                 return Response(
@@ -198,9 +226,9 @@ class PhishingBatchDetectView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            if not isinstance(urls, list):
+            if not isinstance(html_contents, dict):
                 return Response(
-                    {"error": "urls 必须是列表"},
+                    {"error": "html_contents 必须是对象"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
@@ -220,27 +248,84 @@ class PhishingBatchDetectView(APIView):
 
             # ==================== 更新检测日志 ====================
             processing_time = time.time() - start_time
-            
+
             detection_log.status = 'completed'
             detection_log.result = result
             detection_log.processing_time = processing_time
             detection_log.save()
-            
+
+            resolver = get_resolver()
+            db = IPInfoDatabase()
+            ipinfo_results = []
+
+            for item in result.get('results', []):
+                try:
+                    item_url = item.get('url', '')
+                    if not item_url:
+                        continue
+
+                    ip_address = resolver.resolve_domain(item_url)
+                    if not ip_address:
+                        ipinfo_results.append({
+                            'url': item_url,
+                            'status': 'dns_failed',
+                            'ip': None,
+                        })
+                        continue
+
+                    cached_info = db.get_ip_info(ip_address)
+                    if cached_info:
+                        ipinfo_results.append({
+                            'url': item_url,
+                            'status': 'cached',
+                            'ip': ip_address,
+                            'database_id': cached_info.get('id'),
+                        })
+                        continue
+
+                    ip_data, error = db.query_ipinfo_api(ip_address)
+                    if ip_data:
+                        saved_info = db.get_ip_info(ip_address) or {}
+                        ipinfo_results.append({
+                            'url': item_url,
+                            'status': 'saved',
+                            'ip': ip_address,
+                            'database_id': saved_info.get('id'),
+                        })
+                    else:
+                        ipinfo_results.append({
+                            'url': item_url,
+                            'status': 'query_failed',
+                            'ip': ip_address,
+                            'error': error,
+                        })
+                except Exception as item_error:
+                    logger.error(f"❌ 保存批量 URL 的 ip_info 失败 {item.get('url', '')}: {item_error}")
+                    ipinfo_results.append({
+                        'url': item.get('url', ''),
+                        'status': 'failed',
+                        'ip': None,
+                        'error': str(item_error),
+                    })
+
+            logger.info(f"✅ 已处理 {len(ipinfo_results)} 条批量 URL 的 ip_info 写入")
+
             logger.info(f"✅ 检测日志已更新，任务ID: {task_id}，状态: completed")
-            
+
             # 在响应中添加任务ID和其他元数据
             response_data = {
                 **result,
                 "task_id": task_id,
                 "task_status": "completed",
-                "processing_time_ms": round(processing_time * 1000, 2)
+                "processing_time_ms": round(processing_time * 1000, 2),
+                "ipinfo_results": ipinfo_results,
             }
-            
+
             return Response(response_data, status=status.HTTP_200_OK)
 
         except Exception as e:
             logger.error(f"批量钓鱼检测失败: {str(e)}", exc_info=True)
-            
+
             # ==================== 记录错误到日志 ====================
             if task_id:
                 try:
@@ -253,7 +338,7 @@ class PhishingBatchDetectView(APIView):
                     logger.info(f"✅ 检测日志已更新为失败状态，任务ID: {task_id}")
                 except Exception as log_e:
                     logger.error(f"❌ 更新检测日志失败: {str(log_e)}")
-            
+
             return Response(
                 {
                     "error": f"Batch detection failed: {str(e)}",
@@ -757,11 +842,28 @@ class PhishingAndGeoTrackView(APIView):
                         if ip_data:
                             # 保存到数据库（已在 query_ipinfo_api 中自动保存）
                             logger.info(f"✅ IP 信息已保存到数据库: {ip_address}")
+                            
+                            # 直接从数据库获取保存的记录，包括 ID
+                            saved_ip_info = db.get_ip_info(ip_address)
+                            database_id = saved_ip_info.get('id') if saved_ip_info else None
+                            
+                            # 将钓鱼检测的风险分数更新到数据库
+                            if is_phishing:
+                                phishing_score = phishing_result.get("score", 0.0)
+                                # 构建包含风险分数的更新数据
+                                update_data = {
+                                    "ip_address": ip_address,
+                                    "risk_score": phishing_score
+                                }
+                                # 更新数据库中的风险分数
+                                db.save_ip_info(update_data)
+                                logger.info(f"✅ 已更新 IP {ip_address} 的风险分数: {phishing_score}")
+                            
                             ipinfo_results.append({
                                 "ip": ip_address,
                                 "source": "api",
                                 "data": ip_data,
-                                "database_id": ip_data.get("id")
+                                "database_id": database_id
                             })
                         else:
                             logger.warning(f"⚠️ 无法获取 IP 信息: {ip_address} - {error}")
@@ -807,6 +909,7 @@ class PhishingAndGeoTrackView(APIView):
                             longitude = float(loc_parts[1]) if len(loc_parts) > 1 else 0.0
 
                             # 创建或更新地理位置记录
+                            phishing_score = phishing_result.get("score", 0.0) * 100  # 转换为 0-100 范围
                             location, created = GeoPhishingLocation.objects.update_or_create(
                                 ip_address=ip_address,
                                 domain=domain or '',
@@ -823,13 +926,18 @@ class PhishingAndGeoTrackView(APIView):
                                     'asn': ip_data.get('asn'),
                                     'threat_level': threat_level,
                                     'is_phishing': True,
+                                    'risk_score': phishing_score,  # 使用钓鱼检测的分数
                                     'raw_data': ip_data,
                                     'source_type': 'phishing_detection',
                                 }
                             )
 
-                            # 更新风险评分
-                            location.update_risk_score()
+                            if not created:
+                                # 更新风险评分和检测次数
+                                location.risk_score = phishing_score
+                                location.detection_count += 1
+                                location.last_seen = timezone.now()
+                                location.save()
                             location.save()
 
                             logger.info(f"✅ 地理位置已{'创建' if created else '更新'}: {ip_address}")

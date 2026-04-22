@@ -471,6 +471,222 @@ class AllIPInfoView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class IPInfoLocationViewSet(APIView):
+    """
+    基于 ipinfo.db 的地理位置查询视图（独立于主库）
+
+    GET /api/ipinfo/locations/
+    GET /api/ipinfo/locations/map/
+    GET /api/ipinfo/locations/hot_spots/
+    GET /api/ipinfo/locations/by_country/
+    GET /api/ipinfo/locations/statistics/
+    GET /api/ipinfo/locations/<str:ip_address>/
+    """
+
+    def get(self, request, action=None, ip_address=None):
+        try:
+            if ip_address:
+                return self._get_detail(ip_address)
+
+            if action == 'map':
+                return self._get_map_data(request)
+            if action == 'hot_spots':
+                return self._get_hot_spots(request)
+            if action == 'by_country':
+                return self._get_by_country(request)
+            if action == 'statistics':
+                return self._get_statistics(request)
+            return self._get_list(request)
+        except Exception as e:
+            logger.error(f"❌ IPInfoLocationViewSet GET 异常: {str(e)}", exc_info=True)
+            return Response({
+                'status': 'error',
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @staticmethod
+    def _parse_loc(loc_value):
+        if not loc_value or ',' not in str(loc_value):
+            return None, None
+        try:
+            lat_str, lon_str = str(loc_value).split(',', 1)
+            return float(lat_str), float(lon_str)
+        except Exception:
+            return None, None
+
+    def _to_location_item(self, row: dict):
+        latitude, longitude = self._parse_loc(row.get('loc'))
+        status_value = row.get('status') or 'active'
+        is_suspicious = status_value in ('blocked', 'inactive')
+        query_count = row.get('query_count') or 0
+        risk_score = min(query_count / 10.0, 1.0) if query_count else (0.8 if is_suspicious else 0.0)
+
+        return {
+            'id': row.get('id'),
+            'ip_address': row.get('ip_address'),
+            'domain': row.get('hostname'),
+            'country': row.get('country'),
+            'city': row.get('city'),
+            'latitude': latitude,
+            'longitude': longitude,
+            'threat_level': 'suspicious' if is_suspicious else 'unknown',
+            'is_phishing': is_suspicious,
+            'risk_score': round(risk_score, 3),
+            'last_seen': row.get('last_updated'),
+            'query_count': query_count,
+            'status': status_value,
+        }
+
+    def _query_rows(self, where_sql='', params=(), order_sql='ORDER BY last_updated DESC', limit_sql=''):
+        sql = f"SELECT * FROM ip_info {where_sql} {order_sql} {limit_sql}".strip()
+        with db.get_cursor() as cursor:
+            cursor.execute(sql, params)
+            return [dict(item) for item in cursor.fetchall()]
+
+    def _get_list(self, request):
+        country = request.query_params.get('country')
+        city = request.query_params.get('city')
+        status_filter = request.query_params.get('status')
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 50))
+        start = max(page - 1, 0) * page_size
+
+        where_parts = []
+        params = []
+        if country:
+            where_parts.append('country = ?')
+            params.append(country)
+        if city:
+            where_parts.append('city = ?')
+            params.append(city)
+        if status_filter:
+            where_parts.append('status = ?')
+            params.append(status_filter)
+
+        where_sql = f"WHERE {' AND '.join(where_parts)}" if where_parts else ''
+
+        with db.get_cursor() as cursor:
+            count_sql = f"SELECT COUNT(*) as total FROM ip_info {where_sql}".strip()
+            cursor.execute(count_sql, tuple(params))
+            total = cursor.fetchone()['total']
+
+        rows = self._query_rows(
+            where_sql=where_sql,
+            params=tuple(params + [page_size, start]),
+            order_sql='ORDER BY last_updated DESC',
+            limit_sql='LIMIT ? OFFSET ?'
+        )
+
+        data = [self._to_location_item(row) for row in rows]
+
+        return Response({
+            'status': 'success',
+            'source': 'ipinfo_db',
+            'count': total,
+            'page': page,
+            'page_size': page_size,
+            'data': data,
+        })
+
+    def _get_detail(self, ip_address: str):
+        with db.get_cursor() as cursor:
+            cursor.execute('SELECT * FROM ip_info WHERE ip_address = ?', (ip_address,))
+            row = cursor.fetchone()
+
+        if not row:
+            return Response({
+                'status': 'error',
+                'message': 'IP 记录不存在'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({
+            'status': 'success',
+            'source': 'ipinfo_db',
+            'data': self._to_location_item(dict(row)),
+        })
+
+    def _get_map_data(self, request):
+        limit = int(request.query_params.get('limit', 1000))
+        rows = self._query_rows(order_sql='ORDER BY query_count DESC, last_updated DESC', limit_sql='LIMIT ?', params=(limit,))
+
+        data = []
+        for row in rows:
+            item = self._to_location_item(row)
+            if item['latitude'] is None or item['longitude'] is None:
+                continue
+            data.append(item)
+
+        return Response({
+            'status': 'success',
+            'source': 'ipinfo_db',
+            'count': len(data),
+            'data': data,
+        })
+
+    def _get_hot_spots(self, request):
+        limit = int(request.query_params.get('limit', 10))
+        rows = self._query_rows(order_sql='ORDER BY query_count DESC, last_updated DESC', limit_sql='LIMIT ?', params=(limit,))
+        data = [self._to_location_item(row) for row in rows]
+
+        return Response({
+            'status': 'success',
+            'source': 'ipinfo_db',
+            'count': len(data),
+            'data': data,
+        })
+
+    def _get_by_country(self, request):
+        country = request.query_params.get('country')
+        if not country:
+            return Response({
+                'status': 'error',
+                'message': '缺少 country 参数'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        rows = self._query_rows(where_sql='WHERE country = ?', params=(country,), order_sql='ORDER BY query_count DESC, last_updated DESC')
+        data = [self._to_location_item(row) for row in rows]
+
+        return Response({
+            'status': 'success',
+            'source': 'ipinfo_db',
+            'country': country,
+            'count': len(data),
+            'data': data,
+        })
+
+    def _get_statistics(self, request):
+        with db.get_cursor() as cursor:
+            cursor.execute('SELECT COUNT(*) as total FROM ip_info')
+            total = cursor.fetchone()['total']
+
+            cursor.execute("SELECT COUNT(*) as blocked FROM ip_info WHERE status = 'blocked'")
+            blocked = cursor.fetchone()['blocked']
+
+            cursor.execute('SELECT COUNT(*) as with_loc FROM ip_info WHERE loc IS NOT NULL AND loc != ""')
+            with_loc = cursor.fetchone()['with_loc']
+
+            cursor.execute('''
+                SELECT country, COUNT(*) as count
+                FROM ip_info
+                WHERE country IS NOT NULL AND country != ''
+                GROUP BY country
+                ORDER BY count DESC
+                LIMIT 10
+            ''')
+            by_country = [dict(item) for item in cursor.fetchall()]
+
+        return Response({
+            'status': 'success',
+            'source': 'ipinfo_db',
+            'summary': {
+                'total': total,
+                'blocked': blocked,
+                'with_location': with_loc,
+            },
+            'by_country': by_country,
+        })
+
+
 # ======================== 域名查询视图 ========================
 
 class DomainQueryView(APIView):

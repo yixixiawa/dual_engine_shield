@@ -43,7 +43,7 @@
                     <el-icon>
                         <List />
                     </el-icon>
-                    <span>任务列表</span>
+                    <span>历史任务</span>
                 </div>
             </template>
 

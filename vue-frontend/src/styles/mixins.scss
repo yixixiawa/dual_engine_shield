@@ -1,0 +1,49 @@
+@use './variables.scss' as *;
+
+@mixin app-page($max-width: $page-max-width) {
+  @include page-shell($max-width);
+  @include section-stack($space-6);
+  animation: fade-in-up 0.28s ease-out;
+}
+
+@mixin app-card {
+  @include panel-surface;
+}
+
+@mixin app-card-header {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+@mixin info-grid($min-width: 180px) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax($min-width, 1fr));
+  gap: $space-4;
+}
+
+@mixin stat-tile {
+  border-radius: $radius-md;
+  border: 1px solid rgba(24, 144, 255, 0.12);
+  background: $surface-muted;
+  padding: $space-4;
+}
+
+@mixin result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-4;
+  padding-top: $space-4;
+  border-top: 1px solid $border;
+  color: $text-muted;
+  font-size: 0.8125rem;
+}
+
+@mixin clamp-title($size: 1.25rem) {
+  font-size: $size;
+  line-height: 1.3;
+  font-weight: 700;
+  color: $text-primary;
+}
