@@ -78,14 +78,14 @@ If safe:
 
 JSON:"""
     
-    def __init__(self, model_path: Optional[str] = None, use_quantization: bool = True, auto_unload_timeout: int = 30):
+    def __init__(self, model_path: Optional[str] = None, use_quantization: bool = True, auto_unload_timeout: int = 300):
         """
         初始化检测器
         
         Args:
             model_path: 模型路径（可选，默认使用配置中的路径）
             use_quantization: 是否使用4-bit量化
-            auto_unload_timeout: 自动卸载超时时间（秒），默认30秒
+            auto_unload_timeout: 自动卸载超时时间（秒），默认300秒
         """
         self.model_path = Path(model_path) if model_path else Path(VULNLMMR_MODEL_PATH)
         self.use_quantization = use_quantization
@@ -209,14 +209,23 @@ JSON:"""
             # 使用配置中的compute_dtype
             compute_dtype = getattr(torch, QUANTIZATION_CONFIG['bnb_4bit_compute_dtype'])
             
+            # 配置设备映射和内存限制以解决显存不足问题
+            import os
+            max_memory = {
+                0: "8GiB",  # GPU 0 最大内存
+                "cpu": "8GiB"  # CPU 最大内存
+            }
+            
             self.model = AutoModelForCausalLM.from_pretrained(
                 model_path_str,
                 quantization_config=quantization_config,
                 device_map="auto",
+                max_memory=max_memory,
                 trust_remote_code=True,
                 local_files_only=True,
                 torch_dtype=compute_dtype,  # 使用配置中的数据类型
-                attn_implementation=attn_implementation
+                attn_implementation=attn_implementation,
+                low_cpu_mem_usage=True
             )
             
             self.model.eval()
@@ -268,7 +277,7 @@ JSON:"""
 - CWE-327: Use of Broken or Risky Cryptographic Algorithm
 - CWE-209: Information Exposure Through Error Message
 - CWE-200: Information Exposure
-- CWE-330: Use of Insufficiently Random Values
+- CWE-3300: Use of Insufficiently Random Values
 - CWE-338: Use of Cryptographically Weak Pseudo-Random Number Generator
 - CWE-319: Cleartext Transmission of Sensitive Information
 - CWE-352: Cross-Site Request Forgery (CSRF)
@@ -1018,7 +1027,7 @@ JSON:"""
                 return ('CWE-532', 'Insertion of Sensitive Information into Log File')
         
         # 5. 弱随机数
-        if cwe_id == 'CWE-330' or cwe_id == 'CWE-338':
+        if cwe_id == 'CWE-3300' or cwe_id == 'CWE-338':
             has_random_for_security = any(pattern in code_lower for pattern in [
                 'random.randint', 'random.random', 'math.random',
                 'rand()', 'mt_rand('
