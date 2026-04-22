@@ -94,6 +94,9 @@
                         {{ (phishingScore * 100).toFixed(1) }}%
                     </div>
                     <div class="summary-detail">{{ getPhishingRiskText(phishingScore) }}</div>
+                    <div class="summary-status" :class="isPhishing ? 'text-danger' : 'text-success'">
+                        {{ isPhishing ? '钓鱼网站' : '安全网站' }}
+                    </div>
                 </div>
 
                 <div class="summary-item">
@@ -102,6 +105,22 @@
                         {{ totalVulns > 0 ? `${totalVulns} 个` : '安全' }}
                     </div>
                     <div class="summary-detail">{{ totalVulns > 0 ? `发现 ${totalVulns} 个安全问题` : '未检测到漏洞' }}</div>
+                    <div class="summary-status" :class="isVulnerable ? 'text-danger' : 'text-success'">
+                        {{ isVulnerable ? '存在漏洞' : '无漏洞' }}
+                    </div>
+                </div>
+
+                <div class="summary-item">
+                    <div class="summary-label">综合风险</div>
+                    <div class="summary-value" :class="overallRiskClass">
+                        {{ overallRiskText }}
+                    </div>
+                    <div class="summary-detail">
+                        {{ (result.value?.comprehensive_risk?.score || 0) * 100 }}%
+                    </div>
+                    <div class="summary-status" :class="overallRiskClass">
+                        {{ overallRiskDesc }}
+                    </div>
                 </div>
             </div>
 
@@ -170,6 +189,7 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useTasksStore } from '@/stores/tasks'
+import { apiCall } from '@/api/client'
 
 const tasksStore = useTasksStore()
 const url = ref('')
@@ -177,6 +197,7 @@ const isDetecting = ref(false)
 const showProgress = ref(false)
 const result = ref<any>(null)
 const crawlInfo = ref<any>(null)
+const reportData = ref<any>(null)
 
 const steps = ref([
     { key: 'crawl', number: 1, title: '爬虫抓取', status: 'pending', statusText: '等待中', progress: 0 },
@@ -185,46 +206,47 @@ const steps = ref([
 ])
 
 const phishingScore = computed(() => {
-    return result.value?.phishing?.final || result.value?.phishing?.risk_score || 0
+    return result.value?.phishing_detection?.score || 0
 })
 
 const codeVulnCount = computed(() => {
-    return result.value?.code?.vulnerabilities?.length || 0
-})
-
-const urlVulnCount = computed(() => {
-    return result.value?.url?.is_vulnerable ? 1 : 0
-})
-
-const webVulnCount = computed(() => {
-    return result.value?.web?.vulnerabilities_found || 0
+    return result.value?.code_vulnerabilities?.length || 0
 })
 
 const totalVulns = computed(() => {
-    return codeVulnCount.value + urlVulnCount.value + webVulnCount.value
+    return result.value?.total_vulnerabilities || 0
+})
+
+const overallRiskLevel = computed(() => {
+    return result.value?.comprehensive_risk?.level || 'low'
+})
+
+const isPhishing = computed(() => {
+    return result.value?.is_phishing || false
+})
+
+const isVulnerable = computed(() => {
+    return result.value?.is_vulnerable || false
 })
 
 const overallRiskClass = computed(() => {
-    const score = phishingScore.value
-    const vulns = totalVulns.value
-    if (score >= 0.8 || vulns > 2) return 'risk-critical'
-    if (score >= 0.5 || vulns > 0) return 'risk-medium'
+    const level = overallRiskLevel.value
+    if (level === 'high') return 'risk-critical'
+    if (level === 'medium') return 'risk-medium'
     return 'risk-safe'
 })
 
 const overallRiskText = computed(() => {
-    const score = phishingScore.value
-    const vulns = totalVulns.value
-    if (score >= 0.8 || vulns > 2) return '高风险'
-    if (score >= 0.5 || vulns > 0) return '中风险'
+    const level = overallRiskLevel.value
+    if (level === 'high') return '高风险'
+    if (level === 'medium') return '中风险'
     return '安全'
 })
 
 const overallRiskDesc = computed(() => {
-    const score = phishingScore.value
-    const vulns = totalVulns.value
-    if (score >= 0.8 || vulns > 2) return '检测到严重安全威胁，建议立即处理'
-    if (score >= 0.5 || vulns > 0) return '发现安全问题，建议尽快修复'
+    const level = overallRiskLevel.value
+    if (level === 'high') return '检测到严重安全威胁，建议立即处理'
+    if (level === 'medium') return '发现安全问题，建议尽快修复'
     return '未检测到安全威胁'
 })
 
@@ -266,6 +288,7 @@ const startDetection = async () => {
     isDetecting.value = true
     showProgress.value = true
     result.value = null
+    reportData.value = null
     resetSteps()
 
     const taskId = tasksStore.addTask({
@@ -277,24 +300,22 @@ const startDetection = async () => {
 
     try {
         updateStep('crawl', 'processing', 30, '正在抓取...')
-        await new Promise(r => setTimeout(r, 1500))
+        await new Promise(r => setTimeout(r, 1000))
         updateStep('crawl', 'completed', 100, '完成')
-        crawlInfo.value = { pages: 5, links: 23, forms: 2, lang: 'html' }
 
         updateStep('phishing', 'processing', 50, '分析中...')
-        await new Promise(r => setTimeout(r, 1500))
+        await new Promise(r => setTimeout(r, 1000))
         updateStep('phishing', 'completed', 100, '完成')
 
         updateStep('vuln', 'processing', 60, '扫描中...')
-        await new Promise(r => setTimeout(r, 2000))
+        
+        // 调用综合检测API
+        const response = await apiCall('/api/detect/comprehensive/', 'POST', { url: url.value })
+        
+        result.value = response
+        reportData.value = response
+        
         updateStep('vuln', 'completed', 100, '完成')
-
-        result.value = {
-            phishing: { final: Math.random() * 0.8, risk_score: Math.random() * 0.8 },
-            code: { vulnerabilities: Math.random() > 0.7 ? [{ type: 'SQL注入' }] : [] },
-            url: { is_vulnerable: Math.random() > 0.8 },
-            web: { vulnerabilities_found: Math.random() > 0.7 ? Math.floor(Math.random() * 3) : 0 }
-        }
 
         tasksStore.updateTask(taskId, {
             status: 'completed',
@@ -314,7 +335,42 @@ const startDetection = async () => {
 }
 
 const generateReport = () => {
-    ElMessage.info('正在生成综合检测报告...')
+    if (!reportData.value) {
+        ElMessage.warning('请先完成检测')
+        return
+    }
+
+    try {
+        // 生成JSON报告
+        const report = {
+            url: reportData.value.url,
+            timestamp: new Date().toISOString(),
+            phishing_detection: reportData.value.phishing_detection,
+            code_vulnerabilities: reportData.value.code_vulnerabilities,
+            comprehensive_risk: reportData.value.comprehensive_risk,
+            total_vulnerabilities: reportData.value.total_vulnerabilities,
+            is_phishing: reportData.value.is_phishing,
+            is_vulnerable: reportData.value.is_vulnerable
+        }
+
+        // 转换为JSON字符串
+        const reportJson = JSON.stringify(report, null, 2)
+
+        // 创建下载链接
+        const blob = new Blob([reportJson], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `comprehensive-report-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+
+        ElMessage.success('报告已下载')
+    } catch (error) {
+        ElMessage.error('生成报告失败: ' + (error as Error).message)
+    }
 }
 </script>
 
@@ -474,6 +530,12 @@ const generateReport = () => {
         margin-top: $space-2;
         font-size: 0.8125rem;
         color: $text-muted;
+    }
+
+    .summary-status {
+        margin-top: $space-1;
+        font-size: 0.75rem;
+        font-weight: 500;
     }
 
     .section-block {

@@ -37,7 +37,7 @@ const toBasePoint = (item: GeoPhishingLocationEntity & { latitude: number; longi
   value: item.risk_score || 0,
   style: {
     color: threatColorMap[item.threat_level] || getColorByRiskScore((item.risk_score || 0) / 100),
-    size: 1.2,
+    size: 8,
     effect: true
   }
 })
