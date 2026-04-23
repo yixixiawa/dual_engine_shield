@@ -30,9 +30,7 @@
                 <div class="model-group">
                     <div class="group-title">钓鱼检测模型</div>
                     <div class="model-list">
-                        <el-tag size="small" type="info">SVM</el-tag>
                         <el-tag size="small" type="info">GTE</el-tag>
-                        <el-tag size="small" type="info">N-gram</el-tag>
                     </div>
                 </div>
 

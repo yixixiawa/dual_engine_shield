@@ -52,47 +52,6 @@ const detailDialogVisible = ref(false)
 const selectedUrl = ref<GeoPhishingLocationEntity | null>(null)
 
 const globeLoading = earthFeature.locationsLoading
-const ipDataList = ref<GeoPhishingLocationEntity[]>([
-  {
-    id: 19,
-    ip_address: "111.119.240.8",
-    domain: "yixixiawa.xyz",
-    country: "SG",
-    city: "Singapore",
-    latitude: 1.2897,
-    longitude: 103.8501,
-    threat_level: "phishing",
-    is_phishing: true,
-    risk_score: 99.73,
-    last_seen: "2026-04-22T18:13:04.831963+08:00"
-  },
-  {
-    id: 18,
-    ip_address: "59.111.160.244",
-    domain: "163.com",
-    country: "CN",
-    city: "Shanghai",
-    latitude: 31.2222,
-    longitude: 121.4581,
-    threat_level: "phishing",
-    is_phishing: true,
-    risk_score: 91.85,
-    last_seen: "2026-04-22T18:13:03.063350+08:00"
-  },
-  {
-    id: 20,
-    ip_address: "203.205.254.157",
-    domain: "qq.com",
-    country: "HK",
-    city: "Sham Shui Po",
-    latitude: 22.3302,
-    longitude: 114.1595,
-    threat_level: "phishing",
-    is_phishing: true,
-    risk_score: 74.17,
-    last_seen: "2026-04-22T18:13:06.590910+08:00"
-  }
-])
 
 const phishingUrlsCount = ref(0)
 const detectedCount = ref(0)
@@ -156,7 +115,6 @@ const getRiskTypeByScore = (score: number) => {
 const updateStatistics = (locations: GeoPhishingLocationEntity[], total: number) => {
     console.log('updateStatistics locations:', locations)
     console.log('updateStatistics total:', total)
-    ipDataList.value = locations
     detectedCount.value = total
     phishingUrlsCount.value = locations.filter((item) => item.is_phishing).length
     // 新的接口返回的risk_score是百分比值，所以使用80作为阈值
@@ -180,7 +138,6 @@ const stats = computed(() => ({
 }))
 
 const resetStatistics = () => {
-    ipDataList.value = []
     detectedCount.value = 0
     phishingUrlsCount.value = 0
     highRiskCount.value = 0
@@ -241,35 +198,6 @@ const locateOnGlobe = (location: GeoPhishingLocationEntity | null) => {
     ElMessage.success(`已定位到 ${location.city || location.country || location.ip_address}`)
     detailDialogVisible.value = false
 }
-
-const runHighlightTestCase = () => {
-    if (!ipDataList.value.length) {
-        ElMessage.warning('当前没有可高亮的真实IP数据，请先刷新')
-        return
-    }
-
-    // 高亮前3个高风险IP
-    const topHighRiskIPs = [...ipDataList.value]
-        .sort((a, b) => (b.risk_score || 0) - (a.risk_score || 0))
-        .slice(0, 3)
-    
-    if (topHighRiskIPs.length > 0) {
-        earthFeature.highlightMultipleIPPoints(topHighRiskIPs)
-        ElMessage.success(`已高亮 ${topHighRiskIPs.length} 个高风险IP`)
-    }
-}
-
-const filteredPhishingUrls = computed(() => {
-    console.log('ipDataList.value:', ipDataList.value)
-    if (!urlSearchKeyword.value) return ipDataList.value
-    const keyword = urlSearchKeyword.value.toLowerCase()
-    return ipDataList.value.filter(
-        (item) => item.ip_address?.toLowerCase().includes(keyword) ||
-            item.domain?.toLowerCase().includes(keyword) ||
-            item.city?.toLowerCase().includes(keyword) ||
-            item.country?.toLowerCase().includes(keyword)
-    )
-})
 
 const globeInitialized = ref(false)
 
