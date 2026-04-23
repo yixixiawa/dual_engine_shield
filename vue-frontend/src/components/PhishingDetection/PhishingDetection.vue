@@ -144,12 +144,12 @@ const normalizedResult = computed(() => {
         domain_resolution: result.domain_resolution,
         ipinfo: result.ipinfo,
         geolocation_sync: result.geolocation_sync,
-        risk_score: Number(detection.score) || 0,
-        final: Number(detection.score) || 0,
+        risk_score: parseFloat((Number(detection.score) || 0).toFixed(2)),
+        final: parseFloat((Number(detection.score) || 0).toFixed(2)),
         total_time_ms: detection.latency_ms,
         models: {
             gte: {
-                score: Number(detection.score) || 0
+                score: parseFloat((Number(detection.score) || 0).toFixed(2))
             },
             original: {
                 score: Number(detection.scores_per_model?.original) || 0

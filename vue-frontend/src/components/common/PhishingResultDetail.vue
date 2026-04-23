@@ -157,7 +157,7 @@ const finalScore = computed(() => {
 })
 
 const scorePercent = computed(() => {
-    return finalScore.value * 100
+    return Math.round(finalScore.value * 100)
 })
 
 const isRisky = computed(() => {
