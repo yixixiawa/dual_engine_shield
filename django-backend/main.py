@@ -25,18 +25,17 @@ def print_banner(host, port):
     """打印服务启动信息"""
     banner = f"""
     ╔════════════════════════════════════════╗
-    ║     Dual Shield Backend Server        ║
+    ║     Dual Shield Backend Server         ║
     ║                                        ║
-    ║  🚀 Server running at:                ║
-    ║     http://{host}:{port}
+    ║  🚀 Server running at:                 ║
+    ║     http://{host}:{port}              ║
     ║                                        ║
     ║  📡 API Endpoints:                     ║
-    ║     • Health Check: /api/health/      ║
-    ║     • Phishing Detection: /api/detect/║
-    ║     • IP Info: /api/ipinfo/           ║
-    ║     • Admin: /admin/                  ║
+    ║     • Health Check: /api/health/       ║
+    ║     • Phishing Detection: /api/detect/ ║
+    ║     • Code Detection: /api/detect/code/║
     ║                                        ║
-    ║  ⏹️  Press CTRL+C to stop              ║
+    ║  ⏹️  Press CTRL+C to stop               ║
     ╚════════════════════════════════════════╝
     """
     print(banner)
