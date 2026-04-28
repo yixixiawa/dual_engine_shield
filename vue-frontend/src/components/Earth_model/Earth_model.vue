@@ -1,7 +1,11 @@
 <template>
     <div class="homepage-container">
         <EarthModelStatsPanel v-model:display-mode="displayMode" :stats="stats" />
-        <EarthModelGlobePanel :display-mode="displayMode" :loading="!globeInitialized" />
+        <!-- 添加 ref -->
+        <EarthModelGlobePanel 
+            ref="globePanelRef"
+            :display-mode="displayMode" 
+            :loading="!globeInitialized" />
         <EarthModelRiskIpListPanel
             v-model:url-search-keyword="urlSearchKeyword"
             :urls-loading="urlsLoading"
@@ -42,6 +46,7 @@ import EarthModelRiskIpListPanel from './modules/EarthModelRiskIpListPanel.vue'
 import EarthModelDetailDialog from './modules/EarthModelDetailDialog.vue'
 
 const GLOBE_CONTAINER_ID = 'globeContainer'
+const globePanelRef = ref<InstanceType<typeof EarthModelGlobePanel> | null>(null)
 
 const earthFeature = useEarthFeature()
 
@@ -231,20 +236,30 @@ const filteredPhishingUrls = computed(() => {
     )
 })
 
+const handleWindowResize = () => {
+    globePanelRef.value?.handleResize()
+}
+
+
 const globeInitialized = ref(false)
 
 onMounted(async () => {
-    // 每次挂载时都重新初始化地球模型
-    globeInitialized.value = false
+    // 初始化地球模型
+    earthFeature.initChart(GLOBE_CONTAINER_ID)
+    globeInitialized.value = true
     
-    // 先初始化地球模型
-    if (!globeInitialized.value) {
-        earthFeature.initChart(GLOBE_CONTAINER_ID)
-        globeInitialized.value = true
-    }
+    // 等待 DOM 更新
+    await nextTick()
     
-    // 然后获取数据
+    // 立即触发 resize 和渲染（不再延迟）
+    globePanelRef.value?.handleResize()
+    globePanelRef.value?.startRenderLoop()
+    
+    // 加载数据
     await loadPhysicalAddresses()
+    
+    // 添加窗口 resize 监听
+    window.addEventListener('resize', handleWindowResize)
 })
 
 watch(detailDialogVisible, (visible) => {
@@ -262,6 +277,7 @@ watch(displayMode, async (newMode) => {
 
 onBeforeUnmount(() => {
     earthFeature.dispose()
+    window.removeEventListener('resize', handleWindowResize)
 })
 </script>
 

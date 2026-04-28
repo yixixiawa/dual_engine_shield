@@ -74,6 +74,16 @@ export const useEarthModel = () => {
     disposeChart(currentChart)
     currentChart = initEarthChart(containerId, finalConfigs[mode], chartStyle)
     currentMode = mode
+    
+    // 将实例保存到全局，方便其他组件访问
+    if (currentChart) {
+      const container = document.getElementById(containerId)
+      if (container) {
+        ;(container as any).__globeInstance = currentChart
+      }
+      ;(window as any).__globeInstance = currentChart
+    }
+    
     return currentChart
   }
 

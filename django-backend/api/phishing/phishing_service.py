@@ -12,7 +12,6 @@ from pathlib import Path
 
 from .phishing_detector import PhishingDetector
 from .attribution import build_explanation
-from .rule_checker import RuleBasedChecker
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +68,6 @@ class PhishingAnalysisService:
         html_file: Optional[str] = None,
         explain: bool = False,
         explain_top_k: int = 20,
-        enable_rule_check: bool = True,
-        rule_weight: float = 0.3,
     ) -> Dict[str, Any]:
         """
         执行钓鱼检测分析
@@ -135,31 +132,6 @@ class PhishingAnalysisService:
         model_text = self.detector.compose_model_text(url, html_to_use)
         prediction = self.detector.predict(url, html_to_use)
 
-        rule_check_result = None
-        if enable_rule_check and not prediction.get('allowlist_domain'):
-            try:
-                logger.info("🔍 执行规则预检查...")
-                rule_check_result = RuleBasedChecker.quick_check(url, html_to_use)
-                logger.info(f"规则检查结果: 风险分={rule_check_result['risk_score']}, "
-                           f"可疑={rule_check_result['is_suspicious']}, "
-                           f"原因={len(rule_check_result['reasons'])}个")
-            except Exception as e:
-                logger.warning(f"规则预检查失败: {e}")
-                rule_check_result = None
-
-        gte_score = prediction.get('score')
-        final_score = gte_score
-
-        if rule_check_result and gte_score is not None:
-            rule_score = rule_check_result['risk_score']
-            final_score = (1 - rule_weight) * gte_score + rule_weight * rule_score
-            logger.info(f"分数融合: GTE={gte_score:.4f}, 规则={rule_score:.4f}, "
-                       f"最终={final_score:.4f} (规则权重={rule_weight})")
-
-            prediction['score'] = final_score
-            prediction['rule_check'] = rule_check_result
-            prediction['is_phishing'] = final_score >= prediction.get('threshold', 0.75)
-
         latency_ms = round((time.perf_counter() - t0) * 1000, 2)
 
         result = {
@@ -183,7 +155,6 @@ class PhishingAnalysisService:
             },
             "error": prediction.get("error"),
             "explanation": None,
-            "rule_check": prediction.get("rule_check"),
         }
 
         # Token 级归因解释（可选）
