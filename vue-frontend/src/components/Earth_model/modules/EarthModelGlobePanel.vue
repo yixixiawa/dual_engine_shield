@@ -38,10 +38,33 @@ const getGlobeInstance = (): any => {
 // 持续渲染函数（解决“无法继续渲染”问题）
 const startRenderLoop = () => {
     const globeInstance = getGlobeInstance()
+    let frameCount = 0
     
     if (globeInstance && typeof globeInstance.render === 'function') {
         const render = () => {
             globeInstance.render()
+            
+            // 每30帧检查一次canvas尺寸，确保不会被拉伸
+            frameCount++
+            if (frameCount % 30 === 0) {
+                const container = document.getElementById(GLOBE_CONTAINER_ID)
+                if (container) {
+                    const canvas = container.querySelector('canvas')
+                    if (canvas) {
+                        const containerWidth = container.clientWidth
+                        const containerHeight = container.clientHeight
+                        const canvasWidth = canvas.width / window.devicePixelRatio
+                        const canvasHeight = canvas.height / window.devicePixelRatio
+                        
+                        // 如果canvas尺寸与容器不匹配，重新调整
+                        if (Math.abs(canvasWidth - containerWidth) > 1 || 
+                            Math.abs(canvasHeight - containerHeight) > 1) {
+                            handleResize()
+                        }
+                    }
+                }
+            }
+            
             animationFrameId.value = requestAnimationFrame(render)
         }
         render()
@@ -63,22 +86,50 @@ const handleResize = () => {
     const width = container.clientWidth
     const height = container.clientHeight
 
+    // 确保尺寸有效
+    if (width <= 0 || height <= 0) return
+
     const globeInstance = getGlobeInstance()
 
     if (globeInstance) {
-        // 方法1：内置 resize 方法
+        // 方法1：内置 resize 方法（earth-flyline 库可能有此方法）
         if (typeof globeInstance.resize === 'function') {
             globeInstance.resize(width, height)
         }
-        // 方法2：手动调整相机和渲染器
+        // 方法2：手动调整相机和渲染器（Three.js 风格）
         else if (globeInstance.camera && globeInstance.renderer) {
             globeInstance.camera.aspect = width / height
             globeInstance.camera.updateProjectionMatrix()
             globeInstance.renderer.setSize(width, height)
+            // 同步更新渲染器的像素比以支持高分辨率屏幕
+            if (globeInstance.renderer.setPixelRatio) {
+                globeInstance.renderer.setPixelRatio(window.devicePixelRatio)
+            }
         }
         // 方法3：尝试 setSize 方法
         else if (typeof globeInstance.setSize === 'function') {
             globeInstance.setSize(width, height)
+        }
+        // 方法4：尝试获取内部的 renderer 对象
+        else if (globeInstance._renderer) {
+            if (globeInstance._camera) {
+                globeInstance._camera.aspect = width / height
+                globeInstance._camera.updateProjectionMatrix()
+            }
+            globeInstance._renderer.setSize(width, height)
+            if (globeInstance._renderer.setPixelRatio) {
+                globeInstance._renderer.setPixelRatio(window.devicePixelRatio)
+            }
+        }
+        // 方法5：尝试 canvas 元素直接设置尺寸
+        else {
+            const canvas = container.querySelector('canvas')
+            if (canvas) {
+                canvas.width = width * window.devicePixelRatio
+                canvas.height = height * window.devicePixelRatio
+                canvas.style.width = `${width}px`
+                canvas.style.height = `${height}px`
+            }
         }
         
         // 触发重绘 - 关键修复：resize 后必须调用 render()
@@ -129,8 +180,13 @@ onMounted(() => {
     const container = document.getElementById(GLOBE_CONTAINER_ID)
     if (container) {
         // 使用 ResizeObserver 监听容器大小变化（比 window resize 更精准）
-        const resizeObserver = new ResizeObserver(() => {
-            handleResize()
+        const resizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                const { width, height } = entry.contentRect
+                if (width > 0 && height > 0) {
+                    handleResize()
+                }
+            }
         })
         resizeObserver.observe(container)
         
@@ -144,8 +200,19 @@ onMounted(() => {
         })
     }
     
-    // 立即检查并启动渲染（不再延迟500ms）
-    checkAndStartRender()
+    // 立即检查并启动渲染（带延迟，确保父组件有时间初始化 globe）
+    setTimeout(checkAndStartRender, 100)
+    
+    // 额外的安全检查：再延迟一段时间后再次尝试
+    setTimeout(() => {
+        const globeInstance = getGlobeInstance()
+        if (!globeInstance) {
+            console.warn('[GlobePanel] globeInstance 仍未初始化，可能需要检查')
+        } else if (animationFrameId.value === null) {
+            // 如果渲染循环还没启动，启动它
+            startRenderLoop()
+        }
+    }, 500)
 })
 
 onBeforeUnmount(() => {
@@ -163,19 +230,25 @@ defineExpose({
 <style scoped lang="scss">
 .middle-section {
     width: 100%;
+    min-height: 0;
 
     .globe-wrapper {
         position: relative;
         width: 100%;
         height: 550px;
+        min-height: 400px;
         background: white;
         border-radius: 16px;
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
 
         .earth {
             width: 100%;
             height: 100%;
+            flex: 1;
+            min-height: 0;
         }
 
         .mode-indicator {

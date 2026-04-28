@@ -242,24 +242,71 @@ const handleWindowResize = () => {
 
 
 const globeInitialized = ref(false)
+const initAttempts = ref(0)
+const maxInitAttempts = 10
+
+const initGlobeWithRetry = async () => {
+    const container = document.getElementById(GLOBE_CONTAINER_ID)
+    if (!container) {
+        if (initAttempts.value < maxInitAttempts) {
+            initAttempts.value++
+            setTimeout(initGlobeWithRetry, 100)
+        }
+        return
+    }
+    
+    const width = container.clientWidth
+    const height = container.clientHeight
+    
+    // 确保容器有有效尺寸
+    if (width <= 0 || height <= 0) {
+        if (initAttempts.value < maxInitAttempts) {
+            initAttempts.value++
+            setTimeout(initGlobeWithRetry, 100)
+        }
+        return
+    }
+    
+    try {
+        // 初始化地球模型
+        earthFeature.initChart(GLOBE_CONTAINER_ID)
+        globeInitialized.value = true
+        console.log('[Earth Model] 地球模型初始化成功')
+        
+        // 等待一小段时间确保 canvas 创建完成
+        await new Promise(resolve => setTimeout(resolve, 50))
+        
+        // 调整尺寸
+        globePanelRef.value?.handleResize()
+        console.log('[Earth Model] 尺寸调整完成')
+        
+        // 启动渲染循环
+        globePanelRef.value?.startRenderLoop()
+        console.log('[Earth Model] 渲染循环已启动')
+        
+        // 加载数据
+        await loadPhysicalAddresses()
+        console.log('[Earth Model] 数据加载完成')
+        
+    } catch (error) {
+        console.error('[Earth Model] 初始化失败:', error)
+        if (initAttempts.value < maxInitAttempts) {
+            initAttempts.value++
+            setTimeout(initGlobeWithRetry, 200)
+        }
+    }
+}
 
 onMounted(async () => {
-    // 初始化地球模型
-    earthFeature.initChart(GLOBE_CONTAINER_ID)
-    globeInitialized.value = true
+    // 添加窗口 resize 监听（先添加，确保 resize 事件能被捕获）
+    window.addEventListener('resize', handleWindowResize)
     
-    // 等待 DOM 更新
+    // 等待 DOM 完全渲染后再初始化
+    await nextTick()
     await nextTick()
     
-    // 立即触发 resize 和渲染（不再延迟）
-    globePanelRef.value?.handleResize()
-    globePanelRef.value?.startRenderLoop()
-    
-    // 加载数据
-    await loadPhysicalAddresses()
-    
-    // 添加窗口 resize 监听
-    window.addEventListener('resize', handleWindowResize)
+    // 开始初始化（带重试机制）
+    initGlobeWithRetry()
 })
 
 watch(detailDialogVisible, (visible) => {
